@@ -7,14 +7,14 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.*;
 
-public class ReceiveHeartBeatThread extends Thread{
+public class ReceivePingThread extends Thread{
 	
 	private int myId;
 	private int myPort;
 	private List<Integer> myPeers;
 	
 	
-	public ReceiveHeartBeatThread(int id, int port, List<Integer> peers){
+	public ReceivePingThread(int id, int port, List<Integer> peers){
 		this.myId = id;
 		this.myPort = port;
 		this.myPeers = peers;
@@ -23,32 +23,36 @@ public class ReceiveHeartBeatThread extends Thread{
         DatagramSocket serverSocket = null;
 		try {
 			serverSocket = new DatagramSocket(this.myPort);
+			serverSocket.setSoTimeout(0);
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			utils.Output.println("Receive Thread " + e.getMessage());
 		}
         while(true){
         	byte[] receiveData = new byte[1024];
         	DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
         	try {
-        		serverSocket.receive(receivePacket);
+        		try{
+        			serverSocket.receive(receivePacket);
+        		}
+        		catch (IOException e) {
+        			utils.Output.println("Fail to receive PING: " + e.getMessage());
+            		continue;
+            	}
         		String sentence = new String( receivePacket.getData());
-        		System.out.println("RECEIVED: " + sentence);
+        		utils.Output.println("RECEIVED: " + sentence);
         		InetAddress IPAddress = receivePacket.getAddress();
         		int port = receivePacket.getPort();
         		String ackData = "Ack " + this.myId;
         		DatagramPacket sendPacket =new DatagramPacket(ackData.getBytes(), ackData.length(), IPAddress, port);
-        		serverSocket.setSoTimeout(1);
         		try{
-        			// ignore client timeout
         			serverSocket.send(sendPacket);
             	} catch (IOException e) {
-            		System.out.println("receive hearbeat 1");
-            		// e.printStackTrace();
+        			// Ignore client timeout
+            		utils.Output.println("Fail to send ACK: " + e.getMessage());
             	}
-        	} catch (IOException e) {
-        		// System.out.println("receive hearbeat 2");
-        		// e.printStackTrace();
+        	} catch (Exception e) {
+        		utils.Output.println("Failure in Receive Thread: " + e.getMessage());
         	}
        }
 	}

@@ -6,8 +6,7 @@ import java.util.LinkedHashMap;
 
 import com.sun.org.apache.xalan.internal.xsltc.cmdline.getopt.GetOpt;
 
-import failure.detector.ReceiveHeartBeatThread;
-import failure.detector.SendHeartBeatThread;
+import failure.detector.*;
 
 
 public class FailureDetector {
@@ -71,8 +70,8 @@ public class FailureDetector {
 			System.exit(-1);
 		}
 		
-		ReceiveHeartBeatThread receiveThread = new ReceiveHeartBeatThread(serverId, serverPort, null);
-		SendHeartBeatThread sendThread = new SendHeartBeatThread(serverId, peers);
+		ReceivePingThread receiveThread = new ReceivePingThread(serverId, serverPort, null);
+		SendPingThread sendThread = new SendPingThread(serverId, peers);
 		
 		receiveThread.start();
 		sendThread.start();

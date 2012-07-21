@@ -10,60 +10,57 @@ import java.net.UnknownHostException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class SendHeartBeatThread extends Thread{
+public class SendPingThread extends Thread{
 	private int myId;
 	private LinkedHashMap<Integer, Integer> peers;
 	
-	public SendHeartBeatThread(int id, LinkedHashMap<Integer, Integer> heartBeatPeers){
+	public SendPingThread(int id, LinkedHashMap<Integer, Integer> pingPeers){
 		this.myId = id;
-		peers = heartBeatPeers;	
+		peers = pingPeers;	
 	}
 	
 	public void run() {
 		while(true){
 			for (Map.Entry<Integer, Integer> peer : peers.entrySet()) {
-				try {
+				try{
 					// TODO add host name to the address and parse it here instead of hard code localhost
 					int peerId = peer.getKey();
-					int peerPport = peer.getValue();
-					System.out.println("send hearbeat to peer : " + peerId  + " in port: " + peerPport  + ".");
-					String heartBeat = "Heartbeat from " + this.myId;
+					int peerPort = peer.getValue();
+					utils.Output.println("Send PING to server : " + peerId  + " in port: " + peerPort  + ".");
+					String ping = "PING from " + this.myId;
 					DatagramSocket clientSocket = new DatagramSocket();
+					// If no ACK after 1 second, then report failure 
 					clientSocket.setSoTimeout(1000);
 					InetAddress IPAddress = InetAddress.getByName("localhost");
 					byte[] sendData = new byte[1024];
 					byte[] receiveData = new byte[1024];
-					sendData = heartBeat.getBytes();
-					DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, peerPport );
-					clientSocket.send(sendPacket);
+					sendData = ping.getBytes();
+					DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, peerPort );
+					
+					try{
+						clientSocket.send(sendPacket);
+					}catch (SocketException e) {
+						utils.Output.println("error sending PING to server " + peerId + ": " + e.getMessage());
+					} 
+					
 					DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 					try{
 						clientSocket.receive(receivePacket);
 						String ack = new String(receivePacket.getData());
-						System.out.println("FROM SERVER: " + ack);
+						utils.Output.println("ACK from server: " + ack);
 					}
 					catch(SocketTimeoutException timeout){
-						System.out.println("peer " + peerId + " Failed.");
+						utils.Output.println("Server " + peerId + " Failed.");
 					}
 					clientSocket.close();
-				} catch (SocketException e) {
-					// TODO Auto-generated catch block
-					System.out.println("send hearbeat 1");
-					e.printStackTrace();
-				} catch (UnknownHostException e) {
-					// TODO Auto-generated catch block
-					System.out.println("send hearbeat 2");
-					e.printStackTrace();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					System.out.println("send hearbeat 3");
-					e.printStackTrace();
+				}catch (IOException e) {
+					utils.Output.println("Send Thread: " + e.getMessage());
 				}
 			}
 			try {
 				sleep(3000);
 			} catch (InterruptedException e) {
-				e.printStackTrace();
+				utils.Output.println("Send Thread: " + e.getMessage());
 			}
 		}
 	}
