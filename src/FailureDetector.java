@@ -16,48 +16,25 @@ public class FailureDetector {
 	private static int mServerCount;
 	private static int[] mPortMap;
 	private static LinkedHashMap<Integer, Integer> peers;
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-		String failureSettingFile = "";
-		GetOpt getopt = new GetOpt(args, "i:f:");
-		serverId = 1;
-		try {
-			int c;
-			while ((c = getopt.getNextOption()) != -1) {
-			    switch(c) {
-			    case 'i':
-			    	serverId = Integer.parseInt(getopt.getOptionArg());
-			        break;
-			    case 'f':
-			    	failureSettingFile = getopt.getOptionArg();
-			        break;
-			    }
-			}
-		} catch (Exception e1) {
-			e1.printStackTrace();
-		}
-		
+	
+	public static void start(int id, String failureSettingFile){
 		
 		try{
 			// read server setting file
 			java.net.URL path = ClassLoader.getSystemResource(failureSettingFile);	
-			FileReader fr = new FileReader (failureSettingFile);//path.getFile());
+			FileReader fr = new FileReader(failureSettingFile);//path.getFile());
 	        BufferedReader br = new BufferedReader (fr);
 	        String line;
 	        try {
 	        	peers = new LinkedHashMap<Integer, Integer>();
-				while ((line = br.readLine()) != null){
-					String[] serverSetting = line.split(",");				
-					if(Integer.parseInt(serverSetting[0]) == serverId){
-						serverPort = Integer.parseInt(serverSetting[1]);
-						int count = serverSetting.length;
-						for(int i = 2 ; i < count;){
-							peers.put(Integer.parseInt(serverSetting[i]), Integer.parseInt(serverSetting[i+1]));
-							i+=2;
-						}
+	        	while ((line = br.readLine()) != null){
+					String[] serverSetting = line.split(",");
+					int i = 0;
+					if(Integer.parseInt(serverSetting[i]) == serverId){
+						serverPort = Integer.parseInt(serverSetting[++i]);
+						peers.put(Integer.parseInt(serverSetting[++i]), Integer.parseInt(serverSetting[++i]));
+						peers.put(Integer.parseInt(serverSetting[++i]), Integer.parseInt(serverSetting[++i]));
+						peers.put(Integer.parseInt(serverSetting[++i]), Integer.parseInt(serverSetting[++i]));
 						break;
 					}
 				}
@@ -82,6 +59,33 @@ public class FailureDetector {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+		
+	}
+	
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		String failureSettingFile = "";
+		GetOpt getopt = new GetOpt(args, "i:f:");
+		serverId = 1;
+		try {
+			int c;
+			while ((c = getopt.getNextOption()) != -1) {
+			    switch(c) {
+			    case 'i':
+			    	serverId = Integer.parseInt(getopt.getOptionArg());
+			        break;
+			    case 'f':
+			    	failureSettingFile = getopt.getOptionArg();
+			        break;
+			    }
+			}
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
+		start(serverId, failureSettingFile);
 	}
 
 }
