@@ -41,7 +41,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     public void insert(IInsertRequest req) throws RemoteException{
         if(isKeyInThisMachine(req.getKey())){
         	synchronized(this.cache) {
-                handelMessage(req, "insert: machine " + this.myId + " - " + req.printRequest() + " is inserted");
+                handleMessage(req, "insert: machine " + this.myId + " - " + req.printRequest() + " is inserted");
                 this.cache.put(req.getKey(), req.getValue());
             }
         }
@@ -50,10 +50,10 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
             	String nextMachineAddress = getNextMachineAddress(req.getKey());
                 IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                 Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
-                handelMessage(req, "insert: machine " + this.myId + " - " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
+                handleMessage(req, "insert: machine " + this.myId + " - " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
                 dhtNextMachine.insert(req);
             }  catch(Exception e) {
-                handelMessage(req, "insert: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
+                handleMessage(req, "insert: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
             }
         }
     }
@@ -68,11 +68,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
             synchronized(this.cache) {
                 if(this.cache.containsKey(req.getKey())){
                     Object value = this.cache.get(req.getKey());
-                    handelMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " is " + value);
+                    handleMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " is " + value);
                     return value;
                 }
                 else{
-                    handelMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " not found.");				
+                    handleMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " not found.");				
                     return null;
                 }			
             }
@@ -82,10 +82,10 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
             	String nextMachineAddress = getNextMachineAddress(req.getKey());
                 IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                 Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
-                handelMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
+                handleMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
                 return dhtNextMachine.lookup(req);
             }catch(Exception e) {
-                handelMessage(req, "lookup: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
+                handleMessage(req, "lookup: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
             }
         }
         return null;
@@ -100,11 +100,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	if(isKeyInThisMachine(req.getKey())){
             synchronized(this.cache) {
                 if(this.cache.containsKey(req.getKey())){
-                    handelMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " is found");
+                    handleMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " is found");
                     return 1;
                 }
                 else{
-                    handelMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " not found.");               
+                    handleMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " not found.");               
                     return 0;
                 }           
             }
@@ -114,10 +114,10 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
             	String nextMachineAddress = getNextMachineAddress(req.getKey());
                 IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                 Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
-                handelMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
+                handleMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
                 return 1 + dhtNextMachine.lookupTrace(req);
             }catch(Exception e) {
-                handelMessage(req, "lookup trace: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
+                handleMessage(req, "lookup trace: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
             }
         }
         return 0;
@@ -132,11 +132,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	if(isKeyInThisMachine(req.getKey())){
             synchronized(this.cache) {
                 if(this.cache.containsKey(req.getKey())){
-                    handelMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " is deleted");					
+                    handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " is deleted");					
                     this.cache.remove(req.getKey());
                 }
                 else{
-                    handelMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " not found");
+                    handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " not found");
                 }
             }
         }
@@ -145,10 +145,10 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
             	String nextMachineAddress = getNextMachineAddress(req.getKey());
                 IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                 Naming.lookup("rmi://localhost:"+ nextMachineAddress+"/DistributedHashTable");
-                handelMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
+                handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
                 dhtNextMachine.delete(req);
             } catch(Exception e) {
-                handelMessage(req, "delete: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
+                handleMessage(req, "delete: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
             }
         }
     }
@@ -177,7 +177,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     /** 
      * append message to the request
      */
-    private void handelMessage(IQueryRequest req, String msg){
+    private void handleMessage(IQueryRequest req, String msg){
         try{
             System.out.println(msg);
             req.appendMessage(msg);

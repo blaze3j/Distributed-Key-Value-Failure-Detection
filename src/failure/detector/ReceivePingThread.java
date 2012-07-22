@@ -11,13 +11,10 @@ public class ReceivePingThread extends Thread{
 	
 	private int myId;
 	private int myPort;
-	private List<Integer> myPeers;
-	
 	
 	public ReceivePingThread(int id, int port, List<Integer> peers){
 		this.myId = id;
 		this.myPort = port;
-		this.myPeers = peers;
 	}
 	public void run(){
         DatagramSocket serverSocket = null;
