@@ -23,7 +23,7 @@ public class ReceivePingThread extends Thread{
 			serverSocket.setSoTimeout(0);
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
-			utils.Output.println("Receive Thread " + e.getMessage());
+			System.out.println("Receive Thread " + e.getMessage());
 		}
         while(true){
         	byte[] receiveData = new byte[1024];

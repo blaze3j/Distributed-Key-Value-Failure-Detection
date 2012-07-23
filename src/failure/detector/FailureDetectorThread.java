@@ -11,12 +11,14 @@ public class FailureDetectorThread extends Thread {
 	private LinkedHashMap<Integer, Integer> peers;
 		
 	public FailureDetectorThread(int id, String failureSettingFile) throws NumberFormatException, IOException {
+	    System.out.println("Recieved id " + id + " settings file " + failureSettingFile);
 	    // read server setting file
 	    // java.net.URL path = ClassLoader.getSystemResource(failureSettingFile);	
 	    FileReader fr = new FileReader(failureSettingFile);//path.getFile());
 	    BufferedReader br = new BufferedReader (fr);
 	    String line;
-
+	    serverId = id;
+	    
 	    peers = new LinkedHashMap<Integer, Integer>();
 	    while ((line = br.readLine()) != null){
 	        String[] serverSetting = line.split(",");
