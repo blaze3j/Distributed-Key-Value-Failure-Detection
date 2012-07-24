@@ -15,14 +15,15 @@ public class ReplicationStorage {
     	this.id = id;
     	this.address = address;
     	this.port = port;
+    	this.cache = new Hashtable<String, List<String>>();
     }
     
     public void insert(String key, String value){
-    	utils.Output.print("insert: replication " + this.id + " is inserted");
         List<String> values = this.cache.get(key);
         if(values == null)
         	values = new ArrayList<String>();
         values.add(value);
         this.cache.put(key, values);
+        utils.Output.print("insert-ReplicationStorage: machine " + this.id + ", " + key + " is inserted");
     }
 }

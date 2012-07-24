@@ -5,24 +5,22 @@ import java.util.*;
 
 public class InsertReplicationRequest extends InsertRequest implements IInsertReplicationRequest{
 	private static final long serialVersionUID = 1L;
-	private List<Integer> Path; 
+	private List<Integer> probe; 
 
     /** 
      * Constructor
      */
 	public InsertReplicationRequest(int requestId, int machineId, String key, Object value){
 		super(requestId, machineId, key, value);
-		Path = new ArrayList<Integer>();
+		this.probe = new ArrayList<Integer>();
 	}
 	
-	@Override
-	public void updatePath(int id){
-		Path.add(id);
+	public void updateProbe(int id) throws RemoteException{
+		this.probe.add(id);
 	}	
 
-	@Override
-	public List<Integer> getPath() throws RemoteException {
-		return this.Path;
+	public List<Integer> getProbe() throws RemoteException{
+		return this.probe;
 	}
 	
 	/** 
