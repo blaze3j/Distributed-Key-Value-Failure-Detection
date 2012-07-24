@@ -20,10 +20,11 @@ public class DHTServer {
 	private static int serverId;
 	private static String  serverSettingFile;
 	private static int serverPort;
+	private static int serverCount;
 	private static LinkedHashMap<Integer, String> successor;
 	public static void main(String[] args) {
 
-	    GetOpt getopt = new GetOpt(args, "i:f:");
+	    GetOpt getopt = new GetOpt(args, "i:f:c:");
 		serverId = 1;
 		try {
 			int c;
@@ -31,6 +32,9 @@ public class DHTServer {
 			    switch(c) {
 			    case 'i':
 			    	serverId = Integer.parseInt(getopt.getOptionArg());
+			        break;
+			    case 'c':
+			    	serverCount = Integer.parseInt(getopt.getOptionArg());
 			        break;
 			    case 'f':
 			    	serverSettingFile = getopt.getOptionArg();
@@ -86,8 +90,6 @@ public class DHTServer {
 		}
 
 		try{
-			// TODO read number of servers
-			int serverCount = 4;
 			// initialize the server for this process
 			DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverCount, successor);
 			Naming.rebind("//localhost:"+serverPort+"/DistributedHashTable", dhtServer);

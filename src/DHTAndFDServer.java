@@ -22,11 +22,12 @@ public class DHTAndFDServer {
     private static String serverSettingFile;
     private static String serverFDSettingFile;
     private static int serverPort;
+    private static int serverCount;
     private static LinkedHashMap<Integer, String> successor;
     private static FailureDetectorThread failureDetectorThread;
     
     public static void main(String[] args) {
-        GetOpt getopt = new GetOpt(args, "i:d:f:");
+        GetOpt getopt = new GetOpt(args, "i:d:f:c:");
         serverId = 1;
         try {
             int c;
@@ -35,6 +36,9 @@ public class DHTAndFDServer {
                 case 'i':
                     serverId = Integer.parseInt(getopt.getOptionArg());
                     break;
+			    case 'c':
+			    	serverCount = Integer.parseInt(getopt.getOptionArg());
+			        break;
                 case 'f':
                     serverSettingFile = getopt.getOptionArg();
                     break;
@@ -102,8 +106,6 @@ public class DHTAndFDServer {
         failureDetectorThread.start();
         
         try{
-			// TODO read number of servers
-			int serverCount = 4;
             // initialize the server for this process
             DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverCount, successor);
             Naming.rebind("//localhost:"+serverPort+"/DistributedHashTable", dhtServer);

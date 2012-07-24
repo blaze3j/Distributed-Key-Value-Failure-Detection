@@ -15,7 +15,6 @@ import distributed.hash.table.*;
 
 // Interactive Client application for Distributed hash table
 public class DHTInteractiveClient extends JFrame{
-	private static int MaxSize = 250000;
     private int mServerCount;
     public int[] mPortMap;
     private IDistributedHashTable[] mDhtServerArray = null;
@@ -229,13 +228,15 @@ public class DHTInteractiveClient extends JFrame{
 			if(mDhtServerArray[server-1] != null){
 				UnicastRemoteObject.exportObject(queryReq);
 				ArrayList<String> values = (ArrayList<String>)mDhtServerArray[server-1].lookup(queryReq);
-				appendOutput("DHT Server:\n" + queryReq.getMessage() + "\nDHT Client:\nlookup value is \n" );
+				String msg = "\t";
 				if(values != null){
 					for(String value: values)
-						appendOutput("\t" + value);
+						msg += value + " ,";
+					msg = msg.substring(0, msg.length() - 2);
 				}
 				else
-					appendOutput("\tnull");
+					msg += "null";
+				appendOutput("DHT Server:\n" + queryReq.getMessage() + "\nDHT Client:\nlookup value is:\n" + msg );
 			}
 			else
 				appendOutput("sendLookupRequest: server " + server + " is not initialized");			

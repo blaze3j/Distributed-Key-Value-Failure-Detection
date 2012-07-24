@@ -10,14 +10,20 @@ rmic distributed.hash.table.InsertRequest
 rmic distributed.hash.table.InsertReplicationRequest
 
 
-java -Djava.security.policy=server.policy DHTServer -i 1 -f serverSetting4.txt 
-java -Djava.security.policy=server.policy DHTServer -i 2 -f serverSetting4.txt
-java -Djava.security.policy=server.policy DHTServer -i 3 -f serverSetting4.txt
-java -Djava.security.policy=server.policy DHTServer -i 4 -f serverSetting4.txt
+java -Djava.security.policy=server.policy DHTServer -i 1 -c 4 -f serverSetting4.txt
+java -Djava.security.policy=server.policy DHTServer -i 2 -c 4 -f serverSetting4.txt
+java -Djava.security.policy=server.policy DHTServer -i 3 -c 4 -f serverSetting4.txt
+java -Djava.security.policy=server.policy DHTServer -i 4 -c 4 -f serverSetting4.txt
+
+
+java -Djava.security.policy=server.policy DHTAndFDServer -i 1 -c 4 -f serverSetting4.txt -d failureSetting4.txt
+java -Djava.security.policy=server.policy DHTAndFDServer -i 2 -c 4 -f serverSetting4.txt -d failureSetting4.txt
+java -Djava.security.policy=server.policy DHTAndFDServer -i 3 -c 4 -f serverSetting4.txt -d failureSetting4.txt
+java -Djava.security.policy=server.policy DHTAndFDServer -i 4 -c 4 -f serverSetting4.txt -d failureSetting4.txt
 
 running client for experiments
 
-java DHTInteractiveClient -f clientSetting4.txt
+java DHTInteractiveClient -c 4 -f clientSetting4.txt
 
 clientSetting4.txt is the file that contains address of servers as bellow, In this scenario it is port number of processes  
 15551,15552,15553,15554

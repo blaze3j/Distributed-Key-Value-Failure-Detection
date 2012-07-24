@@ -2,6 +2,7 @@ package distributed.hash.table;
 
 import java.rmi.Naming;
 import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.*; 
 
 import failure.detector.FailureDetectorThread;
@@ -51,11 +52,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public void insert(IInsertRequest req) throws RemoteException{
-    	for(String word: splitWithStopWords(req.getKey())){
-            if(isServerMatch(this.myId, word)){
+    	for(String word: splitWithStopWords(req.getKey().toLowerCase())){
+            if(getServer(word) == this.myId){
             	// update local copy
             	synchronized(this.cache) {
-                    handleMessage(req, "insert: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + " , " + req.getValue() + ">  is inserted");
+                    handleMessage(req, "insert: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + " , " + req.getValue() + ">  is inserted.\n");
                     String newValue = (String)req.getValue();
                     List<String> values = this.cache.get(word);
                     if(values == null)
@@ -74,7 +75,9 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
                     IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                     Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
                     handleMessage(req, "insert: machine " + this.myId + " - " + reqNextMachine.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
+                    UnicastRemoteObject.exportObject(reqNextMachine);
                     dhtNextMachine.insert(reqNextMachine);
+                    handleMessage(req, reqNextMachine.getMessage());
                 }  catch(Exception e) {
                     handleMessage(req, "insert: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
                 }
@@ -87,7 +90,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	synchronized (replications) {
         	for(ReplicationStorage rep: replications){
         		String key = req.getKey();
-        		if(isServerMatch(rep.id, key)){
+        		if(getServer(key) == rep.id){
         			rep.insert(key, (String)req.getValue());
         		}
         	}	
@@ -100,10 +103,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public Object lookup(IQueryRequest req) throws RemoteException{
-    	if(isServerMatch(this.myId, req.getKey())){
+    	String key = req.getKey().toLowerCase();
+    	if(getServer(key) == this.myId){
             synchronized(this.cache) {
-                if(this.cache.containsKey(req.getKey())){
-                    Object value = this.cache.get(req.getKey());
+                if(this.cache.containsKey(key)){
+                    Object value = this.cache.get(key);
                     handleMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " is " + value);
                     return value;
                 }
@@ -115,7 +119,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         }
         else{
             try {
-            	String nextMachineAddress = getNextMachineAddress(req.getKey());
+            	String nextMachineAddress = getNextMachineAddress(key);
                 IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                 Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
                 handleMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
@@ -133,9 +137,10 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public int lookupTrace(IQueryRequest req) throws RemoteException{
-    	if(isServerMatch(this.myId, req.getKey())){
+    	String key = req.getKey().toLowerCase();
+    	if(getServer(key) == this.myId){
             synchronized(this.cache) {
-                if(this.cache.containsKey(req.getKey())){
+                if(this.cache.containsKey(key)){
                     handleMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " is found");
                     return 1;
                 }
@@ -147,7 +152,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         }
         else{
             try {
-            	String nextMachineAddress = getNextMachineAddress((String)req.getKey());
+            	String nextMachineAddress = getNextMachineAddress(key);
                 IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                 Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
                 handleMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
@@ -165,11 +170,12 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public void delete(IQueryRequest req) throws RemoteException{
-    	if(isServerMatch(this.myId, req.getKey())){
+    	String key = req.getKey().toLowerCase();
+    	if(getServer(key) == this.myId){
             synchronized(this.cache) {
-                if(this.cache.containsKey(req.getKey())){
+                if(this.cache.containsKey(key)){
                     handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " is deleted");					
-                    this.cache.remove(req.getKey());
+                    this.cache.remove(key);
                 }
                 else{
                     handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " not found");
@@ -178,7 +184,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         }
         else{
             try {
-            	String nextMachineAddress = getNextMachineAddress(req.getKey());
+            	String nextMachineAddress = getNextMachineAddress(key);
                 IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                 Naming.lookup("rmi://localhost:"+ nextMachineAddress+"/DistributedHashTable");
                 handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
@@ -221,13 +227,13 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     }
     
     /** 
-     * check if the key is stored in this local hash table
-     */
-    private boolean isServerMatch(int id, String key){
+     * calculate the hash code of the key and return the server associated to the key
+     */   
+    private int getServer(String key){
     	int hash = key.hashCode();
-    	int server =(hash % sCount) + 1;
-    	utils.Output.println("****** Hash cod of " + key + " is " + hash + " id " + id +  " server " + server);
-    	return server == id;
+    	int server =(hash % this.sCount) + 1;
+    	utils.Output.println("****** Hash cod of " + key + " is " + hash + " server " + server);
+    	return (server < 0) ? server + this.sCount : server;
     }
     
     /** 
@@ -236,11 +242,12 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      */
 	private String getNextMachineAddress(String key){
 		Map.Entry<Integer, String> nextMachine = null;
+		int server = getServer(key);
 		for (Map.Entry<Integer, String> peer : this.successorTable.entrySet()) {
 			int id = peer.getKey();
 			// check if it is alive
 			//if(FailureDetector.isAlive(id)){
-				if(isServerMatch(id, key)){					
+				if(server == id){					
 					return peer.getValue();
 				}
 				nextMachine = peer;
