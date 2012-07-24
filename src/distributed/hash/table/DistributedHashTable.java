@@ -4,33 +4,45 @@ import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.util.*; 
 
+import failure.detector.FailureDetectorThread;
+
 public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject implements IDistributedHashTable{
+	
+	private static final List<String> STOP_WORDS = new ArrayList<String>(Arrays.asList("a","able","about","across","after","all","almost","also","am","among","an","and",
+			"any","are","as","at","be","because","been","but","by","can","cannot","could","dear","did","do","does","either","else",
+			"ever","every","for","from","get","got","had","has","have","he","her","hers","him","his","how","however","i","if","in",
+			"into","is","it","its","just","least","let","like","likely","may","me","might","most","must","my","neither","no","nor",
+			"not","of","off","often","on","only","or","other","our","own","rather","said","say","says","she","should","since","so",
+			"some","than","that","the","their","them","then","there","these","they","this","tis","to","too","twas","us","wants","was",
+			"we","were","what","when","where","which","while","who","whom","why","will","with","would","yet","you","your"));
+
     private static final long serialVersionUID = 1L;
-    private Hashtable<Integer, Object> cache;
-    private LinkedHashMap<String, Integer> successorTable;
+    private Hashtable<String, List<String>> cache;
+    private List<ReplicationStorage> replications;
+    private LinkedHashMap<Integer, String> successorTable; // <id, address>
     private int myId;
-    private int startKey;
-    private int keySize;
+    private int sCount;
 
     /** 
      * Constructor
      */
-    public DistributedHashTable(int id, int startKey, int size, LinkedHashMap<String, Integer> successor) throws java.rmi.RemoteException {
+    public DistributedHashTable(int id, int serverCount, LinkedHashMap<Integer, String> successor) throws java.rmi.RemoteException {
         super(); 
-        this.cache = new Hashtable<Integer, Object>();
+        this.cache = new Hashtable<String, List<String>>();
+        replications = new ArrayList<ReplicationStorage>();
         this.successorTable = successor;
-        this.myId = id;
-        this.startKey = startKey;
-        this.keySize = size;
-        
-        System.out.print("DHT server id: " + this.myId + " is created.");
-		Set<Map.Entry<String, Integer>> peers = successor.entrySet();
 
-		for (Map.Entry<String, Integer> peer : peers) {
-			System.out.print(" peer in port: " + peer.getKey()  + " with max: " + peer.getValue() + ".");
-		}
+        this.myId = id;
+        this.sCount = serverCount;
         
-        System.out.println();
+        utils.Output.println("DHT server id: " + this.myId + " is created.");
+        Set<Map.Entry<Integer, String>> peers = successor.entrySet();
+
+		for (Map.Entry<Integer, String> peer : peers) {
+			// <id, address> address can be name:port. For now assumption is address is just port
+			replications.add(new ReplicationStorage(peer.getKey(), "", Integer.parseInt(peer.getValue())));
+			utils.Output.println(" peer " + peer.getKey()  + " on port " + peer.getValue() + " is added.");
+		}
     }
     
     /** 
@@ -39,23 +51,47 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public void insert(IInsertRequest req) throws RemoteException{
-        if(isKeyInThisMachine(req.getKey())){
-        	synchronized(this.cache) {
-                handleMessage(req, "insert: machine " + this.myId + " - " + req.printRequest() + " is inserted");
-                this.cache.put(req.getKey(), req.getValue());
+    	for(String word: splitWithStopWords(req.getKey())){
+            if(isServerMatch(this.myId, word)){
+            	// update local copy
+            	synchronized(this.cache) {
+                    handleMessage(req, "insert: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + " , " + req.getValue() + ">  is inserted");
+                    String newValue = (String)req.getValue();
+                    List<String> values = this.cache.get(word);
+                    if(values == null)
+                    	values = new ArrayList<String>();
+                    if(values.contains(newValue))
+                    	continue;
+                    values.add(newValue);
+                    this.cache.put(word, values);
+                }
+            	// update its replations
             }
-        }
-        else{
-            try {
-            	String nextMachineAddress = getNextMachineAddress(req.getKey());
-                IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
-                Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
-                handleMessage(req, "insert: machine " + this.myId + " - " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
-                dhtNextMachine.insert(req);
-            }  catch(Exception e) {
-                handleMessage(req, "insert: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
+            else{
+                try {
+                	IInsertRequest reqNextMachine = new InsertRequest(req.getRequestId(), req.getMachineId() , word, req.getValue());
+                	String nextMachineAddress = getNextMachineAddress(word);
+                    IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
+                    Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
+                    handleMessage(req, "insert: machine " + this.myId + " - " + reqNextMachine.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
+                    dhtNextMachine.insert(reqNextMachine);
+                }  catch(Exception e) {
+                    handleMessage(req, "insert: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
+                }
             }
-        }
+    	}
+    }
+    
+	@Override
+	public void insertReplication(IInsertReplicationRequest req) throws RemoteException {
+    	synchronized (replications) {
+        	for(ReplicationStorage rep: replications){
+        		String key = req.getKey();
+        		if(isServerMatch(rep.id, key)){
+        			rep.insert(key, (String)req.getValue());
+        		}
+        	}	
+		}
     }
 
     /** 
@@ -64,7 +100,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public Object lookup(IQueryRequest req) throws RemoteException{
-    	if(isKeyInThisMachine(req.getKey())){
+    	if(isServerMatch(this.myId, req.getKey())){
             synchronized(this.cache) {
                 if(this.cache.containsKey(req.getKey())){
                     Object value = this.cache.get(req.getKey());
@@ -97,7 +133,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public int lookupTrace(IQueryRequest req) throws RemoteException{
-    	if(isKeyInThisMachine(req.getKey())){
+    	if(isServerMatch(this.myId, req.getKey())){
             synchronized(this.cache) {
                 if(this.cache.containsKey(req.getKey())){
                     handleMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " is found");
@@ -111,7 +147,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         }
         else{
             try {
-            	String nextMachineAddress = getNextMachineAddress(req.getKey());
+            	String nextMachineAddress = getNextMachineAddress((String)req.getKey());
                 IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
                 Naming.lookup("rmi://localhost:"+ nextMachineAddress +"/DistributedHashTable");
                 handleMessage(req, "lookup trace: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachineAddress + "\n");
@@ -129,7 +165,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public void delete(IQueryRequest req) throws RemoteException{
-    	if(isKeyInThisMachine(req.getKey())){
+    	if(isServerMatch(this.myId, req.getKey())){
             synchronized(this.cache) {
                 if(this.cache.containsKey(req.getKey())){
                     handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " is deleted");					
@@ -187,37 +223,46 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     /** 
      * check if the key is stored in this local hash table
      */
-    private boolean isKeyInThisMachine(int key){
-    	return this.startKey <= key && key < (this.startKey + this.keySize);
+    private boolean isServerMatch(int id, String key){
+    	int hash = key.hashCode();
+    	int server =(hash % sCount) + 1;
+    	utils.Output.println("****** Hash cod of " + key + " is " + hash + " id " + id +  " server " + server);
+    	return server == id;
     }
     
     /** 
      * find the next machine from successor table for a key
      * if next machine is not found, return the last server in the successor table
-     */  
-	private String getNextMachineAddress(int key){
-		Set<Map.Entry<String, Integer>> successors = this.successorTable.entrySet();
-		Map.Entry<String, Integer> selectedEntry = successors.iterator().next();
-		int prev = Integer.MIN_VALUE;
-		boolean isSmaller = key < this.startKey;
-		if(!isSmaller){
-			for (Map.Entry<String, Integer> successor : successors){
-				if( prev < key  && key <= successor.getValue())
-					return successor.getKey();
-				prev = successor.getValue();
-				selectedEntry = successor;
-			}
-		}
-		else{
-			for (Map.Entry<String, Integer> successor : successors){
-				if(successor.getValue() >= key ){
-					if(this.startKey > successor.getValue())
-						return successor.getKey();
+     */
+	private String getNextMachineAddress(String key){
+		Map.Entry<Integer, String> nextMachine = null;
+		for (Map.Entry<Integer, String> peer : this.successorTable.entrySet()) {
+			int id = peer.getKey();
+			// check if it is alive
+			//if(FailureDetector.isAlive(id)){
+				if(isServerMatch(id, key)){					
+					return peer.getValue();
 				}
-				selectedEntry = successor;
+				nextMachine = peer;
+			//}
+		} 
+		// send the request to the last machine in successor 
+		if(nextMachine != null)
+			return nextMachine.getValue();
+		// if all successors are off line, then send the request to the back up peer.
+		return null;//FailureDetector.getBackupPeer().getValue();
+		
+	}
+	
+	private String[] splitWithStopWords(String s){
+		List<String> res = new ArrayList<String>();
+		for(String word: s.split(" "))
+		{
+			if(STOP_WORDS.contains(word) == false){
+				res.add(word);
 			}
 		}
 		
-		return selectedEntry.getKey();
+		return res.toArray(new String[res.size()]);
 	}
 }

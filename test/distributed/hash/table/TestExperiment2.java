@@ -50,7 +50,7 @@ public class TestExperiment2 extends TestExperiment {
                 int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
                 int key = mRandom.nextInt(1000000) + 1;
-                IInsertRequest req = new InsertRequest(mRequestId++, machineId, key, 1);
+                IInsertRequest req = new InsertRequest(mRequestId++, machineId, "" + key, 1);
 
                 mStopwatch.start(); 
                 mDhtClientArray[machineClientId].insert(req);

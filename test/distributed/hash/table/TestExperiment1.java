@@ -50,7 +50,7 @@ public class TestExperiment1 extends TestExperiment {
                 int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
                 int key = mRandom.nextInt(1000000) + 1;
-                IQueryRequest req = new QueryRequest(mRequestId++, machineId, key);
+                IQueryRequest req = new QueryRequest(mRequestId++, machineId, "" + key);
 
                 mStopwatch.start(); 
                 mDhtClientArray[machineClientId].lookup(req);

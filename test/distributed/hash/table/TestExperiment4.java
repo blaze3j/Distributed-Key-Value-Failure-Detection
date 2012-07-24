@@ -53,7 +53,7 @@ public class TestExperiment4 extends TestExperiment{
                 int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
 
-                IInsertRequest req = new InsertRequest(mRequestId++, machineId, i, i);
+                IInsertRequest req = new InsertRequest(mRequestId++, machineId, "" + i, i);
                 mDhtClientArray[machineClientId].insert(req);
             }  catch(Exception e) {
                 e.printStackTrace();
@@ -81,7 +81,7 @@ public class TestExperiment4 extends TestExperiment{
                 int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
                 int key = mRandom.nextInt(1000000) + 1;
-                IQueryRequest req = new QueryRequest(mRequestId++, machineId, key);
+                IQueryRequest req = new QueryRequest(mRequestId++, machineId, "" + key);
                 int hops = mDhtClientArray[machineClientId].lookupTrace(req);
                 System.out.println("DHTServer[" + machineId + "] hops " + hops);
             }  catch(RemoteException e) {

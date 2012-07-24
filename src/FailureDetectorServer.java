@@ -33,7 +33,7 @@ public class FailureDetectorServer {
 		}
 		
 		try {
-            failureDetectorThread = new FailureDetectorThread(serverId, failureSettingFile);
+            failureDetectorThread = FailureDetectorThread.getInstance(serverId, failureSettingFile);
         } catch (NumberFormatException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -43,5 +43,4 @@ public class FailureDetectorServer {
 		
 		while(failureDetectorThread.isAlive());
 	}
-
 }

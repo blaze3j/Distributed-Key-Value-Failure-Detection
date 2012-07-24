@@ -10,7 +10,7 @@ public class InsertRequest extends QueryRequest implements IInsertRequest{
     /** 
      * Constructor
      */
-	public InsertRequest(int requestId, int machineId, int key, Object value){
+	public InsertRequest(int requestId, int machineId, String key, Object value){
 		super(requestId, machineId, key);
 		this.Value = value;
 	}

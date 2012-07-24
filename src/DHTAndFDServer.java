@@ -22,13 +22,11 @@ public class DHTAndFDServer {
     private static String serverSettingFile;
     private static String serverFDSettingFile;
     private static int serverPort;
-    private static int startKey;
-    private static int serverSize;
-    private static LinkedHashMap<String, Integer> successor;
+    private static LinkedHashMap<Integer, String> successor;
     private static FailureDetectorThread failureDetectorThread;
     
     public static void main(String[] args) {
-        GetOpt getopt = new GetOpt(args, "i:f:d:");
+        GetOpt getopt = new GetOpt(args, "i:d:f:");
         serverId = 1;
         try {
             int c;
@@ -57,16 +55,14 @@ public class DHTAndFDServer {
             BufferedReader br = new BufferedReader (fr);
             String line;
             try {
-                successor = new LinkedHashMap<String, Integer>();
+                successor = new LinkedHashMap<Integer, String>();
                 while ((line = br.readLine()) != null){
                     String[] serverSetting = line.split(",");				
                     if(Integer.parseInt(serverSetting[0]) == serverId){
                         serverPort = Integer.parseInt(serverSetting[1]);
-                        startKey = Integer.parseInt(serverSetting[2]);
-                        serverSize = Integer.parseInt(serverSetting[3]);
                         int count = serverSetting.length;
-                        for(int i = 4 ; i < count;){
-                            successor.put(serverSetting[i], Integer.parseInt(serverSetting[i+1]));
+                        for(int i = 2 ; i < count;){
+                            successor.put(Integer.parseInt(serverSetting[i]), serverSetting[i+1]);
                             i+=2;
                         }
                         break;
@@ -94,9 +90,9 @@ public class DHTAndFDServer {
             //do nothing, error means registry already exists
             System.out.println("java RMI registry already exists.");
         }
-
+      
         try {
-            failureDetectorThread = new FailureDetectorThread(serverId, serverFDSettingFile);
+            failureDetectorThread = FailureDetectorThread.getInstance(serverId, serverFDSettingFile);
         } catch (NumberFormatException e1) {
             e1.printStackTrace();
         } catch (IOException e1) {
@@ -106,8 +102,10 @@ public class DHTAndFDServer {
         failureDetectorThread.start();
         
         try{
+			// TODO read number of servers
+			int serverCount = 4;
             // initialize the server for this process
-            DistributedHashTable dhtServer = new DistributedHashTable(serverId, startKey, serverSize, successor);
+            DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverCount, successor);
             Naming.rebind("//localhost:"+serverPort+"/DistributedHashTable", dhtServer);
             System.out.println("Distributed Hash server on machine: " + serverId + " is running.");
         }catch(RemoteException e){

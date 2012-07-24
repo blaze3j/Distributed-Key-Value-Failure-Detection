@@ -7,13 +7,13 @@ public class QueryRequest implements IQueryRequest{
 	private static final long serialVersionUID = 1L;
 	private int RequestId;
 	private int MachineId;
-	private int Key;
+	private String Key;
 	private String message;
 	
 	/** 
      * Constructor
      */
-	public QueryRequest(int requestId, int machineId, int key){
+	public QueryRequest(int requestId, int machineId, String key){
 		this.RequestId = requestId;
 		this.MachineId = machineId;
 		this.Key = key;
@@ -23,7 +23,7 @@ public class QueryRequest implements IQueryRequest{
 	/** 
      * Get key of the request
      */
-	public int getKey(){ return this.Key;}
+	public String getKey(){ return this.Key;}
 	
 	/** 
      * Get request id of the request

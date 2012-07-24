@@ -69,7 +69,7 @@ class ClientThreadExperiment2 extends Thread {
             int machineId = machineClientId + 1;
             int key = mRandom.nextInt(1000000) + 1;
             
-            IInsertRequest req = new InsertRequest(i, machineId, key, key);
+            IInsertRequest req = new InsertRequest(i, machineId, "" + key, key);
             try {
                 mStopwatch.start(); 
                 mDhtClientArray[machineClientId].insert(req);

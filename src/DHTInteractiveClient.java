@@ -6,6 +6,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.rmi.Naming;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
+
 import javax.swing.*;
 import com.sun.org.apache.xalan.internal.xsltc.cmdline.getopt.GetOpt;
 
@@ -182,7 +184,7 @@ public class DHTInteractiveClient extends JFrame{
 	// send an insert request to a server
 	// 1 < key < max key number
 	// server: id of server to insert the key
-	private void sendInsertRequest(int key, Object value, int server)
+	private void sendInsertRequest(String key, Object value, int server)
 	{
 		IInsertRequest insReq = new InsertRequest(mRequestId++, server, key, value);
 		try {
@@ -201,7 +203,7 @@ public class DHTInteractiveClient extends JFrame{
 	// send a delete request to a server
 	// 1 < key < max key number
 	// server: id of server to delete the key
-	private void sendDeleteRequest(int key, int server)
+	private void sendDeleteRequest(String key, int server)
 	{
 		IQueryRequest queryReq = new QueryRequest(mRequestId++, server, key);
 		try {
@@ -220,14 +222,20 @@ public class DHTInteractiveClient extends JFrame{
 	// send a lookup request to a server
 	// 1 < key < max key number
 	// server: id of server to lookup the key
-	private void sendLookupRequest(int key, int server)
+	private void sendLookupRequest(String key, int server)
 	{
 		IQueryRequest queryReq = new QueryRequest(mRequestId++, server, key);
 		try {
 			if(mDhtServerArray[server-1] != null){
 				UnicastRemoteObject.exportObject(queryReq);
-				String value = (String)mDhtServerArray[server-1].lookup(queryReq);
-				appendOutput("DHT Server:\n" + queryReq.getMessage() + "\nDHT Client:\nlookup value is " + value);
+				ArrayList<String> values = (ArrayList<String>)mDhtServerArray[server-1].lookup(queryReq);
+				appendOutput("DHT Server:\n" + queryReq.getMessage() + "\nDHT Client:\nlookup value is \n" );
+				if(values != null){
+					for(String value: values)
+						appendOutput("\t" + value);
+				}
+				else
+					appendOutput("\tnull");
 			}
 			else
 				appendOutput("sendLookupRequest: server " + server + " is not initialized");			
@@ -323,7 +331,7 @@ public class DHTInteractiveClient extends JFrame{
         		if(!validateServer()){
         			return;
         		}
-        		sendInsertRequest(Integer.parseInt(key), value, Integer.parseInt(server));
+        		sendInsertRequest(key, value, Integer.parseInt(server));
         	}
         	else if(action == "lookup"){
         		if(!validateKey()){
@@ -332,7 +340,7 @@ public class DHTInteractiveClient extends JFrame{
         		if(!validateServer()){
         			return;
         		}
-        		sendLookupRequest(Integer.parseInt(key), Integer.parseInt(server));
+        		sendLookupRequest(key, Integer.parseInt(server));
         	}
         	else if(action == "delete"){
         		if(!validateKey()){
@@ -341,7 +349,7 @@ public class DHTInteractiveClient extends JFrame{
         		if(!validateServer()){
         			return;
         		}
-        		sendDeleteRequest(Integer.parseInt(key), Integer.parseInt(server));
+        		sendDeleteRequest(key, Integer.parseInt(server));
         	}
         	else if(action == "count"){
         		if(!validateServer()){
@@ -370,10 +378,6 @@ public class DHTInteractiveClient extends JFrame{
     			JOptionPane.showMessageDialog(null, "Please insert key");
     			return false;
     		}
-        	if(Integer.parseInt(key) < 1 || Integer.parseInt(key) > mServerCount * MaxSize){
-        		JOptionPane.showMessageDialog(null, "Key is not in range");
-        		return false;
-        	}
         	return true;
         }
 	}

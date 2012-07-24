@@ -6,7 +6,7 @@ import java.rmi.Remote;
  * Interface RMI of query request
  */
 public interface IQueryRequest extends java.io.Serializable, Remote{
-	public int getKey() 
+	public String getKey() 
 			throws java.rmi.RemoteException;
 	public int getRequestId() 
 			throws java.rmi.RemoteException;

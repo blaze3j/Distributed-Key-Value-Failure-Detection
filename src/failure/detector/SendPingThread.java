@@ -7,17 +7,17 @@ import java.util.*;
 public class SendPingThread extends Thread{
 	private static final int MaxServersToPing = 2;
 	private int myId;
-	private LinkedHashMap<Integer, Integer> allPeers; // all servers that this server may ping
-	private LinkedHashMap<Integer, Integer> pingPeers; // stores the current alive servers to ping
+	private LinkedHashMap<Integer, String> allPeers; // all servers that this server may ping
+	private LinkedHashMap<Integer, String> pingPeers; // stores the current alive servers to ping
 	private List<Integer> failedServer;
-	Map.Entry<Integer, Integer> backupPeer; // the back up server if a live server failed
+	Map.Entry<Integer, String> backupPeer; // the back up server if a live server failed
 	
-	public SendPingThread(int id, LinkedHashMap<Integer, Integer> peers){
+	public SendPingThread(int id, LinkedHashMap<Integer, String> peers){
 		this.myId = id;
 		this.allPeers = peers;
-		pingPeers = new LinkedHashMap<Integer, Integer>();
+		pingPeers = new LinkedHashMap<Integer, String>();
 		int i = 1;
-		for (Map.Entry<Integer, Integer> peer : peers.entrySet()){
+		for (Map.Entry<Integer, String> peer : peers.entrySet()){
 			if(i++ <= MaxServersToPing)
 				pingPeers.put(peer.getKey(), peer.getValue());
 			else
@@ -26,13 +26,26 @@ public class SendPingThread extends Thread{
 		this.failedServer = new ArrayList<Integer>();
 	}
 	
+	// check if id is list as peer of this machine and is alive, otherwise return false as we don't know about it
+	public boolean isAlive(Integer id){
+		if(allPeers.containsKey(id))
+			synchronized (failedServer) {
+				return !this.failedServer.contains(id);	
+			}
+		return false;
+	}
+
+	public Map.Entry<Integer, String> getBackupPeer(){
+		return backupPeer;
+	}
+	
 	public void run() {
 		while(true){
-			for (Map.Entry<Integer, Integer> peer : pingPeers.entrySet()) {
+			for (Map.Entry<Integer, String> peer : pingPeers.entrySet()) {
 				try{
 					// TODO add host name to the address and parse it here instead of hard code localhost
 					int peerId = peer.getKey();
-					int peerPort = peer.getValue();
+					int peerPort = Integer.parseInt(peer.getValue());
 					utils.Output.println("Send PING to server : " + peerId  + " in port: " + peerPort  + ".");
 					String ping = "PING from " + this.myId;
 					DatagramSocket clientSocket = new DatagramSocket();
@@ -57,8 +70,10 @@ public class SendPingThread extends Thread{
 						utils.Output.println("ACK from server: " + ack);
 					}
 					catch(SocketTimeoutException timeout){
-						utils.Output.println("Server " + peerId + " Failed.");
-						failedServer.add(peerId);
+						synchronized(failedServer){
+							utils.Output.println("Server " + peerId + " Failed.");
+							failedServer.add(peerId);
+						}
 					}
 					finally{
 						if(clientSocket != null)
@@ -84,7 +99,7 @@ public class SendPingThread extends Thread{
 		List<Integer> liveServers = new ArrayList<Integer>();
 		for (Integer id : failedServer) {
 			try{
-				int peerPort = allPeers.get(id);
+				int peerPort = Integer.parseInt(allPeers.get(id));
 				utils.Output.println("Check server : " + id  + " in port: " + peerPort  + ".");
 				String ping = "PING from " + this.myId;
 				DatagramSocket clientSocket = new DatagramSocket(); 
@@ -112,9 +127,13 @@ public class SendPingThread extends Thread{
 				}
 			}catch (IOException e) { }
 		}
-		for(Integer id: liveServers)
-			failedServer.remove(id);
+		for(Integer id: liveServers){
+			synchronized(failedServer){
+				failedServer.remove(id);
+			}
+		}
 	}
+	
 	private void reconstructRing() {
 		utils.Output.println("Send Thread: reconstructRing");
 		checkFailedServer(); // check the failed servers
@@ -131,7 +150,7 @@ public class SendPingThread extends Thread{
 		if(failedServer.size() == 0){
 			pingPeers.clear();
 			int i = 1;
-			for (Map.Entry<Integer, Integer> peer : allPeers.entrySet()){
+			for (Map.Entry<Integer, String> peer : allPeers.entrySet()){
 				if(i++ <= MaxServersToPing)
 					pingPeers.put(peer.getKey(), peer.getValue());
 			}
@@ -139,7 +158,7 @@ public class SendPingThread extends Thread{
 		}
 		
 		// there is at lease one failure, reconstruct the ring if there is any live server left
-		for (Map.Entry<Integer, Integer> peer : allPeers.entrySet()) {
+		for (Map.Entry<Integer, String> peer : allPeers.entrySet()) {
 			int id = peer.getKey();
 			if(failedServer.contains(id))
 				continue;

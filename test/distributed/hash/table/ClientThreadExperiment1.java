@@ -68,7 +68,7 @@ class ClientThreadExperiment1 extends Thread {
             int machineClientId = mRandom.nextInt(mServerCount);
             int machineId = machineClientId + 1;
             int key = mRandom.nextInt(1000000) + 1;
-            IQueryRequest req = new QueryRequest(i, machineId, key);
+            IQueryRequest req = new QueryRequest(i, machineId, "" + key);
             try {
                 mStopwatch.start(); 
                 mDhtClientArray[machineClientId].lookup(req);

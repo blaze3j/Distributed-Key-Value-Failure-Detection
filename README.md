@@ -5,13 +5,15 @@ CS425 MP3 Distributed Key Value Project
 
 javac *.java
 rmic distributed.hash.table.DistributedHashTable
-rmic distributed.hash.table.InsertRequest
 rmic distributed.hash.table.QueryRequest
+rmic distributed.hash.table.InsertRequest
+rmic distributed.hash.table.InsertReplicationRequest
 
-java -Djava.security.policy=server.policy DHTServer -i 1 -f serverSetting4-2.txt 
-java -Djava.security.policy=server.policy DHTServer -i 2 -f serverSetting4-2.txt
-java -Djava.security.policy=server.policy DHTServer -i 3 -f serverSetting4-2.txt
-java -Djava.security.policy=server.policy DHTServer -i 4 -f serverSetting4-2.txt
+
+java -Djava.security.policy=server.policy DHTServer -i 1 -f serverSetting4.txt 
+java -Djava.security.policy=server.policy DHTServer -i 2 -f serverSetting4.txt
+java -Djava.security.policy=server.policy DHTServer -i 3 -f serverSetting4.txt
+java -Djava.security.policy=server.policy DHTServer -i 4 -f serverSetting4.txt
 
 running client for experiments
 

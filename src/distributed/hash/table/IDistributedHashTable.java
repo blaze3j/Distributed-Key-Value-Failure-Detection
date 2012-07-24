@@ -11,6 +11,8 @@ public interface IDistributedHashTable extends Remote {
 			throws java.rmi.RemoteException;
 	public void insert(IInsertRequest req)
 			throws java.rmi.RemoteException;
+	public void insertReplication(IInsertReplicationRequest req)
+		throws java.rmi.RemoteException;
 	public void delete(IQueryRequest req)
 			throws java.rmi.RemoteException;
 	public Object lookup(IQueryRequest req)
