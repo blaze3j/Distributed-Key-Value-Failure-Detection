@@ -431,27 +431,29 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 	/** 
      * purge local hash table
      */
-    public void purge(IQueryRequest req) throws RemoteException{
+    public boolean purge() throws RemoteException{
         synchronized(this.localCache) {
-        	handleMessage(req, "purge: machine " + this.myId + "\n");
             this.localCache.clear();
         }
-        IReplicationQueryRequest purgeRep = new ReplicationQueryRequest(req.getRequestId(), req.getMachineId(), null);
+        IReplicationQueryRequest purgeRep = new ReplicationQueryRequest(1, this.myId, null);
         if(DebugMode)
         	UnicastRemoteObject.exportObject(purgeRep);
-        purgeReplication(purgeRep);
-        handleMessage(req, purgeRep.getMessage());
+        boolean res = purgeReplication(purgeRep);
+        handleMessage(purgeRep, purgeRep.getMessage());
+        return res;
     }
     
     /** 
      * purge replication cache
      */
-    public void purgeReplication(IReplicationQueryRequest req) throws RemoteException{
+    public boolean purgeReplication(IReplicationQueryRequest req) throws RemoteException{
+    	boolean res = false;
     	// drop the package, if the request is visited all servers
-		// or both replication servers are updated
 		if(req.getProbe().contains(this.myId)){
 			handleMessage(req, "purgeReplication: machine " + this.myId + " - drop package: request " + req.getRequestId() + ". Request visited all servers.\n-------------------\n");
-			return; 
+			// we are the the master server, so both replications are not updated,
+			handleMessage(req, "purgeReplication: machine " + this.myId + " - replication machines might be offline: request " + req.getRequestId() + ".\n");
+			return false; 
 		}
     	synchronized (replications) {
         	for(ReplicationStorage rep: replications){
@@ -461,7 +463,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     				handleMessage(req, "purgeReplication: machine " + this.myId + " - request " + req.getRequestId() + ". purge repositroy " + req.getMachineId() + "\n" );
         			if(req.getUpdateCount() == MaxServersToConnect){
         				handleMessage(req, "purgeReplication: machine " + this.myId + " - drop package: request " + req.getRequestId() + ". Both replication servers are updated.\n-------------------\n");
-        				return;
+        				return true;
         			}
         		}
         	}
@@ -473,10 +475,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         	handleMessage(req, "purgeReplication: machine " + this.myId + " - request " + req.getRequestId() + " from machine "+ req.getMachineId() + " routting to machine address " + repAddres + "\n");
 			IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
 					Naming.lookup("rmi://localhost:"+ repAddres +"/DistributedHashTable");
-	        dhtNextMachine.purgeReplication(req);
+			res = dhtNextMachine.purgeReplication(req);
 		} catch (Exception e) {
 			handleMessage(req, "Error-purgeReplication: machine " + this.myId + " " +  e.getMessage());
 		}
+    	return res;
     }
 
     /** 

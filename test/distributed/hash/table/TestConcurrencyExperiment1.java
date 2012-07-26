@@ -38,8 +38,7 @@ public class TestConcurrencyExperiment1 extends TestExperiment {
 
         for (int i = 0; i < mServerCount; i++) {
             try {
-            	IQueryRequest purgeReq = new QueryRequest(mRequestId++, i, null);
-                mDhtClientArray[i].purge(purgeReq);
+                mDhtClientArray[i].purge();
             } catch (RemoteException e) {
                 e.printStackTrace();
                 System.out.println("dhtClient: " +  e.getMessage());

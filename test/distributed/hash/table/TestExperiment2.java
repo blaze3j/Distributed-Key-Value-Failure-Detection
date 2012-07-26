@@ -36,8 +36,8 @@ public class TestExperiment2 extends TestExperiment {
     public void testExperiment2() {
         for (int i = 0; i < mServerCount; i++) {
             try {
-            	IQueryRequest purgeReq = new QueryRequest(mRequestId++, i, null);
-                mDhtClientArray[i].purge(purgeReq);            } catch (RemoteException e) {
+                mDhtClientArray[i].purge();
+            } catch (RemoteException e) {
                 e.printStackTrace();
                 System.out.println("dhtClient: " +  e.getMessage());
             }
@@ -55,10 +55,8 @@ public class TestExperiment2 extends TestExperiment {
                 mStopwatch.start(); 
                 mDhtClientArray[machineClientId].insert(req);
                 mStopwatch.stop();
-                System.out.println("DHTServer[" + machineId + "] insert on empty took " + mStopwatch.getElapsedTime());
-
-            	IQueryRequest purgeReq = new QueryRequest(mRequestId++, machineClientId, null);                
-                mDhtClientArray[machineClientId].purge(purgeReq);
+                System.out.println("DHTServer[" + machineId + "] insert on empty took " + mStopwatch.getElapsedTime());              
+                mDhtClientArray[machineClientId].purge();
                 assertTrue(0 == mDhtClientArray[machineClientId].count());
             }  catch(RemoteException e) {
                 e.printStackTrace();

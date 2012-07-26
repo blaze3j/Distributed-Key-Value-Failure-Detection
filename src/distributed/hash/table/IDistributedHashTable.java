@@ -24,9 +24,9 @@ public interface IDistributedHashTable extends Remote {
 		throws RemoteException;
     public int lookupTrace(IQueryRequest req)
             throws java.rmi.RemoteException;
-	public void purge(IQueryRequest req)
+	public boolean purge()
 	        throws java.rmi.RemoteException;
-	public void purgeReplication(IReplicationQueryRequest req)
+	public boolean purgeReplication(IReplicationQueryRequest req)
 		throws java.rmi.RemoteException;
 	
 }

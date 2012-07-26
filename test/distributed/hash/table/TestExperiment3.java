@@ -39,8 +39,8 @@ public class TestExperiment3 extends TestExperiment {
         int count = 0;
         for (int i = 0; i < mServerCount; i++) {
             try {
-            	IQueryRequest purgeReq = new QueryRequest(mRequestId++, i, null);
-                mDhtClientArray[i].purge(purgeReq);            } catch (RemoteException e) {
+                mDhtClientArray[i].purge();
+            } catch (RemoteException e) {
                 e.printStackTrace();
                 System.out.println("dhtClient: " +  e.getMessage());
             }

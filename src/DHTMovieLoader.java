@@ -11,8 +11,10 @@ import java.util.Random;
 
 import Stopwatch.Stopwatch;
 import distributed.hash.table.IDistributedHashTable;
-import distributed.hash.table.IInsertRequest;
-import distributed.hash.table.InsertRequest;
+import distributed.hash.table.IInsertDeleteRequest;
+import distributed.hash.table.IQueryRequest;
+import distributed.hash.table.InsertDeleteRequest;
+import distributed.hash.table.QueryRequest;
 
 
 public class DHTMovieLoader {
@@ -91,14 +93,12 @@ public class DHTMovieLoader {
                 System.out.println("dhtClient: " +  e.getMessage());
             }
         }
-
-        
         
         try {
             int machineClientId = mRandom.nextInt(mServerCount);
             int machineId = machineClientId + 1;
             int key = mRandom.nextInt(1000000) + 1;
-            IInsertRequest req = new InsertRequest(mRequestId++, machineId, "" + key, 1);
+            IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, "" + key, 1);
 
             mDhtClientArray[machineClientId].insert(req);
             

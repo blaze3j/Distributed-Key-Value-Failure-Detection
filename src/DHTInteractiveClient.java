@@ -33,6 +33,7 @@ public class DHTInteractiveClient extends JFrame{
 	private JLabel serverOutput;
 	private JButton execButton;
 	private JButton purgeButton;
+	private JButton clearButton;
 	private Panel resultPanel;
 	private JTextArea resultArea;
 	private JScrollPane scrollingArea;
@@ -127,7 +128,9 @@ public class DHTInteractiveClient extends JFrame{
 		c.gridx = 3;
 		c.gridy = 2;
 		pane.add(purgeButton, c);
-
+		
+		clearButton	= new JButton("Clear Text");
+		clearButton.addActionListener(new ClearButtonListener());
 		
 		resultArea = new JTextArea(28, 70);
 		resultArea.setEditable(false);
@@ -139,6 +142,7 @@ public class DHTInteractiveClient extends JFrame{
 		resultPanel = new Panel();
 		resultPanel.setLayout (new FlowLayout(FlowLayout.CENTER));
 		resultPanel.add(serverOutput);
+		resultPanel.add(clearButton);
 		resultPanel.add(scrollingArea);
 		
 		add(upperPanel, BorderLayout.NORTH);
@@ -280,12 +284,10 @@ public class DHTInteractiveClient extends JFrame{
 		for(int i = 0; i < mServerCount; i ++){
 			if(mDhtServerArray[i] != null){
 				try {
-					IQueryRequest purgeQuery = new QueryRequest(mRequestId++, i+1, null);
-					if(DebugMode)
-						UnicastRemoteObject.exportObject(purgeQuery);
-					mDhtServerArray[i].purge(purgeQuery);
-					if(DebugMode)
-						appendOutput("DHT Server:\n" + purgeQuery.getMessage());
+					if(mDhtServerArray[i].purge())
+						appendOutput("DHT Client purge machine " + (i+1) + " is done.\n");
+					else
+						appendOutput("DHT Client purge machine " + (i+1) + " is failed.\n");
 				} catch (Exception e1) {
 					appendOutput("purge server " + (i+1) + " " + e1.getMessage());
 				}
@@ -325,6 +327,14 @@ public class DHTInteractiveClient extends JFrame{
         		valueBox.setEnabled(false);
         		keyBox.setEnabled(false);
         	}
+        }
+	}
+	
+	
+	// clear button listener
+	class ClearButtonListener implements ActionListener { 
+        public void actionPerformed(ActionEvent e) {
+        	resultArea.setText("");
         }
 	}
 	
