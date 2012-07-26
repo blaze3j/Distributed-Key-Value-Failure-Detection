@@ -114,6 +114,7 @@ public class DHTAndFDServer {
             // initialize the server for this process
             DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverCount, successor);
             Naming.rebind("//localhost:"+serverPort+"/DistributedHashTable", dhtServer);
+            failureDetectorThread.addServerJoinListener(dhtServer);
             System.out.println("Distributed Hash server on machine: " + serverId + " is running.");
         }catch(RemoteException e){
             System.out.println("dhtServer: " + e.getMessage());

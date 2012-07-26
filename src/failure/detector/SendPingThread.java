@@ -11,8 +11,10 @@ public class SendPingThread extends Thread{
 	private LinkedHashMap<Integer, String> pingPeers; // stores the current alive servers to ping
 	private List<Integer> failedServer;
 	Map.Entry<Integer, String> backupPeer; // the back up server if a live server failed
+	FailureDetectorThread parentThread;
 	
-	public SendPingThread(int id, LinkedHashMap<Integer, String> peers){
+	public SendPingThread(FailureDetectorThread parent, int id, LinkedHashMap<Integer, String> peers){
+		this.parentThread = parent;
 		this.myId = id;
 		this.allPeers = peers;
 		pingPeers = new LinkedHashMap<Integer, String>();
@@ -118,7 +120,8 @@ public class SendPingThread extends Thread{
 				DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 				try{
 					clientSocket.receive(receivePacket);
-					utils.Output.println("Server : " + id  + " is back.");
+					utils.Output.println("Server : " + id  + " is joined back.");
+					this.parentThread.fireServerJoin(id);
 					liveServers.add(id);
 				}catch(SocketTimeoutException e){ } 
 				finally{

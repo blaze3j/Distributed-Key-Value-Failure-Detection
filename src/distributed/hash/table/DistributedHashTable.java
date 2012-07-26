@@ -6,8 +6,10 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 
 import failure.detector.FailureDetectorThread;
+import failure.detector.ServerJoinEvent;
+import failure.detector.ServerJoinListener;
 
-public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject implements IDistributedHashTable{
+public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject implements IDistributedHashTable, ServerJoinListener{
 	
 	private static final List<String> STOP_WORDS = new ArrayList<String>(Arrays.asList("a","able","about","across","after","all","almost","also","am","among","an","and",
 			"any","are","as","at","be","because","been","but","by","can","cannot","could","dear","did","do","does","either","else",
@@ -101,7 +103,8 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 	                		UnicastRemoteObject.exportObject(reqNextMachine);
 	                    IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
 	                    		Naming.lookup("rmi://localhost:"+ nextMachine.getValue() +"/DistributedHashTable");
-	                    dhtNextMachine.insert(reqNextMachine);
+	                    dhtNextMachine.insert(reqNextMacserver 1 joind
+hine);
 	                    // update message received by next machine as original request is not sent to the next machine
 	                    handleMessage(req, reqNextMachine.getMessage());
                 	}
@@ -529,5 +532,10 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 			}
 		}
 		return res.toArray(new String[res.size()]);
+	}
+	
+	@Override
+	public void onServerJoin(ServerJoinEvent e){
+		utils.Output.println("DistributedHashTable onServerJoin: server " +  e.getServerId() + " joind");
 	}
 }
