@@ -68,6 +68,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      */
     public void insert(IInsertDeleteRequest req) throws RemoteException{
     	for(String word: splitWithStopWords(req.getKey().toLowerCase())){
+    		word = word.trim();
     		int serverId = getServer(word);
         	String newValue = (String)req.getValue();
         	// this machine is suppose to store the key
@@ -142,7 +143,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * The request is dropped if it visited all servers in the ring, or both replication servers are updated
      */
 	public void insertReplication(IInsertDeleteReplicationRequest req) throws RemoteException {
-		String key = req.getKey();
+		String key = req.getKey().trim();
 		String value = (String)req.getValue();
     	int serverId = getServer(key);
 		// drop the package, if the request is visited all servers 
@@ -194,7 +195,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public Object lookup(IQueryRequest req) throws RemoteException{
-    	String key = req.getKey().toLowerCase();
+    	String key = req.getKey().trim().toLowerCase();
     	int serverId = getServer(key);
     	// this machine is suppose to contain the key
     	if(serverId == this.myId){
@@ -249,7 +250,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * lookup a query request on replication servers and send the request to next live machine if local does not contain the replication
      */
     public Object lookupReplication(IReplicationQueryRequest req) throws RemoteException{
-    	String key = req.getKey();
+    	String key = req.getKey().trim();
     	int serverId = getServer(key);
     	synchronized (replications) {
         	for(ReplicationStorage rep: replications){
@@ -282,7 +283,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * if next server can not be located, send it to the last server
      */
     public int lookupTrace(IQueryRequest req) throws RemoteException{
-    	String key = req.getKey().toLowerCase();
+    	String key = req.getKey().trim().toLowerCase();
     	int serverId = getServer(key);
     	if(serverId  == this.myId){
             synchronized(this.localCache) {
@@ -318,6 +319,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     public void delete(IInsertDeleteRequest req) throws RemoteException{
     	String value = (String) req.getValue();
     	for(String word: splitWithStopWords(req.getKey().toLowerCase())){
+    		word = word.trim();
     		int serverId = getServer(word);
 	    	if(serverId  == this.myId){
 	            synchronized(this.localCache) {
@@ -382,7 +384,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * delete a query request on replication servers and send the request to next live machine
      */
     public void deleteReplication(IInsertDeleteReplicationRequest req) throws RemoteException{
-    	String key = req.getKey();
+    	String key = req.getKey().trim();
     	int serverId = getServer(key);
     	String value = (String)req.getValue();
     	// drop the package, if the request is visited all servers
@@ -498,9 +500,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      */
     private void handleMessage(IQueryRequest req, String msg){
         try{
-        	utils.Output.println(msg);
-            if(DebugMode)
+            if(DebugMode){
+            	utils.Output.println(msg);
             	req.appendMessage(msg);
+            }
+            	
         }catch(Exception e){ }
     }
     
@@ -510,7 +514,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     private int getServer(String key){
     	int hash = key.hashCode();
     	int server =(hash % this.sCount) + 1;
-    	return (server < 0) ? server + this.sCount : server;
+    	return (server <= 0) ? server + this.sCount : server;
     }
     
     /** 
