@@ -1,5 +1,8 @@
 package distributed.hash.table;
 
-public interface IInsertDeleteReplicationRequest extends IReplicationQueryRequest, IInsertDeleteRequest {
+import java.rmi.RemoteException;
 
+public interface IInsertDeleteReplicationRequest extends IReplicationQueryRequest, IInsertDeleteRequest {
+	public boolean isDirty() 
+			throws RemoteException;
 }

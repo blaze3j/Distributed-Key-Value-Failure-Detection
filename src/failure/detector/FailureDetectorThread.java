@@ -87,7 +87,7 @@ public class FailureDetectorThread extends Thread {
 	    	}
 
 	    	// walk through the listener list and
-	    	//   call the sunMoved method in each
+	    	// call the ServerJoinEvent method in each
 	    	Enumeration<ServerJoinListener> e = targets.elements();
 	    	while (e.hasMoreElements()) {
 	    		ServerJoinListener l = (ServerJoinListener) e.nextElement();

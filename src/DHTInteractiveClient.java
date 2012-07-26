@@ -424,7 +424,7 @@ public class DHTInteractiveClient extends JFrame{
 			        break;
 			    case 'r':
 			    	String s = getopt.getOptionArg();
-	            	DebugMode = (s == "debug");
+	            	DebugMode = (s.equals("debug"));
 	                break;
 	                
 			    }
