@@ -103,8 +103,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 	                		UnicastRemoteObject.exportObject(reqNextMachine);
 	                    IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
 	                    		Naming.lookup("rmi://localhost:"+ nextMachine.getValue() +"/DistributedHashTable");
-	                    dhtNextMachine.insert(reqNextMacserver 1 joind
-hine);
+	                    dhtNextMachine.insert(reqNextMachine);
 	                    // update message received by next machine as original request is not sent to the next machine
 	                    handleMessage(req, reqNextMachine.getMessage());
                 	}
@@ -534,8 +533,10 @@ hine);
 		return res.toArray(new String[res.size()]);
 	}
 	
-	@Override
+	/** 
+     * a failed server join back the ring
+     */	
 	public void onServerJoin(ServerJoinEvent e){
-		utils.Output.println("DistributedHashTable onServerJoin: server " +  e.getServerId() + " joind");
+		utils.Output.println("DistributedHashTable - onServerJoin: server " +  e.getServerId() + " joind");
 	}
 }

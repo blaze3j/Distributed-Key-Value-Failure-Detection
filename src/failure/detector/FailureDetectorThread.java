@@ -16,7 +16,7 @@ public class FailureDetectorThread extends Thread {
 	private ReceivePingThread receiveThread = null;
 	private SendPingThread sendThread = null;
 	
-	private transient Vector<ServerJoinListener> listeners;
+	private Vector<ServerJoinListener> listeners;
 	
 	public static FailureDetectorThread getInstance(int id, String failureSettingFile) throws NumberFormatException, IOException{
 		if(instance == null)
