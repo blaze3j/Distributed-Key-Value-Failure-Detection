@@ -3,14 +3,14 @@ package distributed.hash.table;
 /** 
  * Implementation of RMI insert request
  */
-public class InsertRequest extends QueryRequest implements IInsertRequest{
+public class InsertDeleteRequest extends QueryRequest implements IInsertDeleteRequest{
 	private static final long serialVersionUID = 1L;
 	Object Value; 
 
     /** 
      * Constructor
      */
-	public InsertRequest(int requestId, int machineId, String key, Object value){
+	public InsertDeleteRequest(int requestId, int machineId, String key, Object value){
 		super(requestId, machineId, key);
 		this.Value = value;
 	}

@@ -32,15 +32,15 @@ public class TestRequest extends TestExperiment {
     @Test
     public void testExperiment1() {
         try {
-            IInsertRequest iReq = new InsertRequest(mRequestId++, 1, "" + 1, 1);
+        	IInsertDeleteRequest iReq = new InsertDeleteRequest(mRequestId++, 1, "" + 1, 1);
             mDhtClientArray[0].insert(iReq);
             System.out.println("DHTClient insert: " + iReq.getMessage());
 
-            iReq = new InsertRequest(mRequestId++, 3, "" + 2, 2);
+            iReq = new InsertDeleteRequest(mRequestId++, 3, "" + 2, 2);
             mDhtClientArray[2].insert(iReq);
             System.out.println("DHTClient insert: " + iReq.getMessage());
 
-            iReq = new InsertRequest(mRequestId++, 4, "" + 982345, 756321);
+            iReq = new InsertDeleteRequest(mRequestId++, 4, "" + 982345, 756321);
             mDhtClientArray[3].insert(iReq);
             System.out.println("DHTClient insert: " + iReq.getMessage());
 

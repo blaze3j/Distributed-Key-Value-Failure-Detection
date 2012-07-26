@@ -1,11 +1,9 @@
 package distributed.hash.table;
 
-import java.net.MalformedURLException;
 import java.rmi.Naming;
-import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.*; 
+import java.util.*;
 
 import failure.detector.FailureDetectorThread;
 
@@ -18,33 +16,42 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 			"not","of","off","often","on","only","or","other","our","own","rather","said","say","says","she","should","since","so",
 			"some","than","that","the","their","them","then","there","these","they","this","tis","to","too","twas","us","wants","was",
 			"we","were","what","when","where","which","while","who","whom","why","will","with","would","yet","you","your"));
-
+	public static boolean DebugMode;
+	
     private static final long serialVersionUID = 1L;
+	private static final int MaxServersToConnect = 2;
     private Hashtable<String, List<String>> cache;
     private List<ReplicationStorage> replications;
     private LinkedHashMap<Integer, String> successorTable; // <id, address>
+	Map.Entry<Integer, String> backupSuccessor; // the back up server if a live server failed
     private int myId;
     private int sCount;
 
     /** 
      * Constructor
      */
-    public DistributedHashTable(int id, int serverCount, LinkedHashMap<Integer, String> successor) throws java.rmi.RemoteException {
+    public DistributedHashTable(int id, int serverCount, LinkedHashMap<Integer, String> successors) throws java.rmi.RemoteException {
         super(); 
         this.cache = new Hashtable<String, List<String>>();
         replications = new ArrayList<ReplicationStorage>();
-        this.successorTable = successor;
+        this.successorTable = new LinkedHashMap<Integer, String>();
 
         this.myId = id;
         this.sCount = serverCount;
         
         utils.Output.println("DHT server id: " + this.myId + " is created.");
-        Set<Map.Entry<Integer, String>> peers = successor.entrySet();
-
-		for (Map.Entry<Integer, String> peer : peers) {
-			// <id, address> address can be name:port. For now assumption is address is just port
-			replications.add(new ReplicationStorage(peer.getKey(), "", Integer.parseInt(peer.getValue())));
-			utils.Output.println(" peer " + peer.getKey()  + " on port " + peer.getValue() + " is added.");
+		int i = 1;
+		// <id, address> address can be name:port. For now assumption is address is just port
+		for (Map.Entry<Integer, String> successor : successors.entrySet()) {
+			if(i++ <= MaxServersToConnect){
+				this.successorTable.put(successor.getKey(), successor.getValue());
+				replications.add(new ReplicationStorage(successor.getKey(), "", Integer.parseInt(successor.getValue())));
+				utils.Output.println(" successor " + successor.getKey()  + " on port " + successor.getValue() + " is added.");
+			}
+			else{
+				utils.Output.println(" backup successor " + successor.getKey()  + " on port " + successor.getValue() + " is added.");
+				this.backupSuccessor = successor;
+			}
 		}
     }
     
@@ -53,41 +60,45 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * or send the request to the next server that key belongs to if it is not in this server.
      * if next server can not be located, send it to the last server
      */
-    public void insert(IInsertRequest req) throws RemoteException{
+    public void insert(IInsertDeleteRequest req) throws RemoteException{
     	for(String word: splitWithStopWords(req.getKey().toLowerCase())){
     		int serverId = getServer(word);
         	String newValue = (String)req.getValue();
+        	// this machine is suppose to store the key
             if(serverId == this.myId){
             	// update local copy
             	synchronized(this.cache) {
                     List<String> values = this.cache.get(word);
-                    if(values == null)
+                    if(values == null){
                     	values = new ArrayList<String>();
-                    values.add(newValue);
-                    this.cache.put(word, values);
-                    handleMessage(req, "insert: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + " , " + req.getValue() + ">  is inserted.\n");
+                    	this.cache.put(word, values);
+                    }
+                    if(!values.contains(newValue)){
+                    	values.add(newValue);
+                        // this.cache.put(word, values);
+                        handleMessage(req, "insert: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + " , " + req.getValue() + ">  is inserted.\n +++++++ Update Repliction\n");
+                    	// update repository servers
+                    	doInsertReplication(req, word, false);                    	
+                    }
+                    else
+                    	handleMessage(req, "insert: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + " , " + req.getValue() + ">  already exists.\n");
                 }
-            	IInsertReplicationRequest insRepReq = new InsertReplicationRequest(req.getRequestId(), req.getMachineId(), word, newValue);
-                UnicastRemoteObject.exportObject(insRepReq);
-                insertReplication(insRepReq);
-                handleMessage(req, insRepReq.getMessage());
             }
             else{
+            	// go to the next machine for insert
                 try {                	
                 	Map.Entry<Integer, String> nextMachine = getNextMachine(serverId, word);
-                	// server is off line, updates the replication machines
-                	if(nextMachine.getKey() == serverId && !FailureDetectorThread.isAlive(serverId)){
-                		handleMessage(req, "insert: machine " + this.myId + " - server " + serverId + " is failed update replications.\n");
-                    	IInsertReplicationRequest insRepReq = new InsertReplicationRequest(req.getRequestId(), req.getMachineId(), word, newValue);
-                    	UnicastRemoteObject.exportObject(insRepReq);
-                    	insertReplication(insRepReq);
-                        handleMessage(req, insRepReq.getMessage());
-                	}
+	                if(nextMachine.getKey() == serverId && !FailureDetectorThread.isAlive(serverId)){
+	                	// server is off line, updates the replication machines
+	            		handleMessage(req, "insert: machine " + this.myId + " - server " + serverId + " is failed. Insert replications.\n");
+	            		doInsertReplication(req, word, true);
+	            	}
                 	else{
-                    	// create a new request for every single word
-                    	IInsertRequest reqNextMachine = new InsertRequest(req.getRequestId(), req.getMachineId() , word, req.getValue());
+                    	// create a new request for every single word and send the request to the last server
+                		IInsertDeleteRequest reqNextMachine = new InsertDeleteRequest(req.getRequestId(), req.getMachineId() , word, newValue);
 	                	handleMessage(req, "insert: machine " + this.myId + " - " + reqNextMachine.printRequest() + " routting to machine address " + nextMachine.getValue() + "\n");
-	                    UnicastRemoteObject.exportObject(reqNextMachine);
+	                	if(DebugMode)
+	                		UnicastRemoteObject.exportObject(reqNextMachine);
 	                    IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
 	                    		Naming.lookup("rmi://localhost:"+ nextMachine.getValue() +"/DistributedHashTable");
 	                    dhtNextMachine.insert(reqNextMachine);
@@ -100,11 +111,28 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
             }
     	}
     }
-    
-	public void insertReplication(IInsertReplicationRequest req) throws RemoteException {
+
+    /** 
+     * create an insert replication request and send the request to update replication servers
+     */
+    private void doInsertReplication(IInsertDeleteRequest req, String key, boolean dirtyInsert) throws RemoteException{
+    	IInsertDeleteReplicationRequest insRepReq = new InsertDeleteReplicationRequest(req.getRequestId(), req.getMachineId(), key, req.getValue());
+    	if(DebugMode)
+    		UnicastRemoteObject.exportObject(insRepReq);
+    	insertReplication(insRepReq);
+        handleMessage(req, insRepReq.getMessage());
+    }
+
+    /** 
+     * insert an entity on the replication hash table if it in the range of this machine,
+     * and then send the request to the next server.
+     * The request is dropped if it visited all servers in the ring, or both replication servers are updated
+     */
+	public void insertReplication(IInsertDeleteReplicationRequest req) throws RemoteException {
+		// drop the package, if the request is visited all servers
+		// or both replication servers are updated
 		if(req.getProbe().contains(this.myId)){
-			// drop the package, the request is visited all nodes
-			handleMessage(req, "insertReplication: machine " + this.myId + " - drop package: request " + req.getRequestId());
+			handleMessage(req, "insertReplication: machine " + this.myId + " - drop package: request " + req.getRequestId() + ". Request visited all servers.\n-------------------\n");
 			return; 
 		}
 		String key = req.getKey();
@@ -112,12 +140,20 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	synchronized (replications) {
         	for(ReplicationStorage rep: replications){
         		if(serverId == rep.id){
-        			handleMessage(req, "insertReplication: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + key + " , " + req.getValue() + ">  is inserted.\n");
+        			// local server contains the replication
+        			handleMessage(req, "insertReplication: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + key + " , " + req.getValue() + ">  is inserted.\n+++++++\n");
+        			req.incrementUpdateCount();
         			rep.insert(key, (String)req.getValue());
+        			// drop the package, if both replication servers are updated
+        			if(req.getUpdateCount() == MaxServersToConnect){
+        				handleMessage(req, "insertReplication: machine " + this.myId + " - drop package: request " + req.getRequestId() + ". Both replication servers are updated.\n-------------------\n");
+        				return;
+        			}
         			break;
         		}
         	}
 		}
+    	
     	// send the update replication to the next machine
     	String repAddres = getNextLiveAddress();
     	req.updateProbe(this.myId);
@@ -127,7 +163,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 					Naming.lookup("rmi://localhost:"+ repAddres +"/DistributedHashTable");
 	        dhtNextMachine.insertReplication(req);
 		} catch (Exception e) {
-			handleMessage(req, "Error-insertReplication: machine " + this.myId + " " +  e.getMessage());
+			handleMessage(req, "Error-insertReplication: machine " + this.myId + " " +  e.getMessage() + "\n");
 		}
     }
 
@@ -139,6 +175,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     public Object lookup(IQueryRequest req) throws RemoteException{
     	String key = req.getKey().toLowerCase();
     	int serverId = getServer(key);
+    	// this machine is suppose to contain the key
     	if(serverId == this.myId){
             synchronized(this.cache) {
                 if(this.cache.containsKey(key)){
@@ -152,18 +189,70 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
                 }			
             }
         }
-        else{
+        else{ 
+        	// go to the next machine for lookup
             try {
             	Map.Entry<Integer, String> nextMachine = getNextMachine(serverId, key);
-                IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
-                Naming.lookup("rmi://localhost:"+ nextMachine.getValue() +"/DistributedHashTable");
-                handleMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachine.getValue() + "\n");
-                return dhtNextMachine.lookup(req);
+            	// server that contains the key is off line then lookup in replication servers
+            	if((nextMachine.getKey() == serverId && !FailureDetectorThread.isAlive(serverId))){
+            		handleMessage(req, "lookup: machine " + this.myId + " - server " + serverId + " is failed. Lookup replications.\n");
+            		return doLookupReplication(req, key);
+            	}
+            	else{
+            		// could not locate the machine that contains the key, go to the last server
+	                handleMessage(req, "lookup: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachine.getValue() + "\n");
+	                IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
+	                Naming.lookup("rmi://localhost:"+ nextMachine.getValue() +"/DistributedHashTable");
+	                return dhtNextMachine.lookup(req);
+            	}
             }catch(Exception e) {
                 handleMessage(req, "Error-lookup: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
             }
         }
         return null;
+    }
+    
+    /** 
+     * create an lookup query replication request and send the request to replication servers
+     */
+    private Object doLookupReplication(IQueryRequest req, String key) throws RemoteException{
+    	IReplicationQueryRequest queryRepReq = new ReplicationQueryRequest(req.getRequestId(), req.getMachineId(), key);
+    	if(DebugMode)
+    		UnicastRemoteObject.exportObject(queryRepReq);
+    	Object value = lookupReplication(queryRepReq);
+        handleMessage(req, queryRepReq.getMessage());
+        return value;
+    }
+    
+    /** 
+     * lookup a query request on replication servers and send the request to next live machine if local does not contain the replication
+     */
+    public Object lookupReplication(IReplicationQueryRequest req) throws RemoteException{
+    	String key = req.getKey();
+    	int serverId = getServer(key);
+    	synchronized (replications) {
+        	for(ReplicationStorage rep: replications){
+        		if(serverId == rep.id){
+                    Object value = rep.getValue(key);
+        			handleMessage(req, "doLookupReplication: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + key + ">  is located on replication server. value is " + value + "\n");
+        			return value;
+        		}
+        	}
+		}
+    	
+    	// replication machine is not find in local, send it to the next live server
+    	String repAddres = getNextLiveAddress();
+		try {
+        	handleMessage(req, "doLookupReplication: machine " + this.myId + " - " + req.printRequest() + " routting to machine address " + repAddres + "\n");
+			IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
+					Naming.lookup("rmi://localhost:"+ repAddres +"/DistributedHashTable");
+	        return dhtNextMachine.lookupReplication(req);
+		} catch (Exception e) {
+			handleMessage(req, "Error-doLookupReplication: machine " + this.myId + " " +  e.getMessage());
+		}
+		// we should not get to this point
+		handleMessage(req, "Error-doLookupReplication: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + key + ">  is not located on any replication machines\n");
+		return null;
     }
 
     /** 
@@ -205,41 +294,160 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * or send the request to the next server that key belongs to if it is not in this server.
      * if next server can not be located, send it to the last server
      */
-    public void delete(IQueryRequest req) throws RemoteException{
-    	String key = req.getKey().toLowerCase();
-    	int serverId = getServer(key);
-    	if(serverId  == this.myId){
-            synchronized(this.cache) {
-                if(this.cache.containsKey(key)){
-                    handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " is deleted");					
-                    this.cache.remove(key);
-                }
-                else{
-                    handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " not found");
-                }
-            }
-        }
-        else{
-            try {
-            	Map.Entry<Integer, String> nextMachine = getNextMachine(serverId, key);
-            	IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
-                Naming.lookup("rmi://localhost:"+ nextMachine.getValue() +"/DistributedHashTable");
-                handleMessage(req, "delete: machine " + this.myId + " - value of " + req.printRequest() + " routed to machine address " + nextMachine.getValue() + "\n");
-                dhtNextMachine.delete(req);
-            } catch(Exception e) {
-                handleMessage(req, "Error-delete: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
-            }
-        }
+    public void delete(IInsertDeleteRequest req) throws RemoteException{
+    	String value = (String) req.getValue();
+    	for(String word: splitWithStopWords(req.getKey().toLowerCase())){
+    		int serverId = getServer(word);
+	    	if(serverId  == this.myId){
+	            synchronized(this.cache) {
+	                if(this.cache.containsKey(word)){
+	                    List<String> values = this.cache.get(word);
+	                    if(values.contains(value))
+	                    {
+	            			handleMessage(req, "delete: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + ", "+ req.getValue() + ">  is deleted.\n+++++++ Update Replication.\n");
+	                    	values.remove(value);
+	                    	if(values.size() == 0)
+	                    		this.cache.remove(word);
+	                    	// update repository servers
+		                	doDeleteReplication(req, word, value, false);
+	                    }
+	                    else
+	                    	handleMessage(req, "delete: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + ", "+ req.getValue() + ">  not found.\n");
+	                }
+	                else
+                    	handleMessage(req, "delete: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + ", "+ req.getValue() + ">  not found.\n");	            
+	            }
+	        }
+	        else{
+	        	// go to the next machine for lookup
+	            try {
+	            	Map.Entry<Integer, String> nextMachine = getNextMachine(serverId, word);
+	            	// server that contains the key is off line then lookup in replication servers
+	            	if((nextMachine.getKey() == serverId && !FailureDetectorThread.isAlive(serverId))){
+	            		handleMessage(req, "lookup: machine " + this.myId + " - server " + serverId + " is failed. Delete replications.\n");
+	                	doDeleteReplication(req, word, value, true);
+	            	}
+	            	else{
+	            		// create a new request for every single word and send the request to the last server
+                		IInsertDeleteRequest reqNextMachine = new InsertDeleteRequest(req.getRequestId(), req.getMachineId() , word, req.getValue());
+		                handleMessage(req, "delete: machine " + this.myId + " - with <" + word + ", "+ req.getKey() + ">  routed to machine address " + nextMachine.getValue() + "\n");
+		                if(DebugMode)
+		                	UnicastRemoteObject.exportObject(reqNextMachine);
+		            	IDistributedHashTable dhtNextMachine = (IDistributedHashTable)
+		                	Naming.lookup("rmi://localhost:"+ nextMachine.getValue() +"/DistributedHashTable");
+		                dhtNextMachine.delete(reqNextMachine);
+		             // update message received by next machine as original request is not sent to the next machine
+	                    handleMessage(req, reqNextMachine.getMessage());
+	            	}
+	            } catch(Exception e) {
+	                handleMessage(req, "Error-delete: machine " + this.myId + " - dhtNextMachine: " +  e.getMessage());
+	            }
+	        }
+    	}
     }
 
     /** 
+     * create an delete query replication request and send the request to update replication servers
+     */
+    private void doDeleteReplication(IQueryRequest req, String key, String value, boolean dirtyDelete) throws RemoteException {
+    	IInsertDeleteReplicationRequest delRepReq = new InsertDeleteReplicationRequest(req.getRequestId(), req.getMachineId(), key, value);
+    	if(DebugMode)
+    		UnicastRemoteObject.exportObject(delRepReq);
+    	deleteReplication(delRepReq);
+        handleMessage(req, delRepReq.getMessage());
+	}
+
+    /** 
+     * delete a query request on replication servers and send the request to next live machine
+     */
+    public void deleteReplication(IInsertDeleteReplicationRequest req) throws RemoteException{
+    	// drop the package, if the request is visited all servers
+		// or both replication servers are updated
+		if(req.getProbe().contains(this.myId)){
+			handleMessage(req, "deleteReplication: machine " + this.myId + " - drop package: request " + req.getRequestId() + ". Request visited all servers.\n-------------------\n");
+			return; 
+		}
+    	String key = req.getKey();
+    	int serverId = getServer(key);
+    	synchronized (replications) {
+        	for(ReplicationStorage rep: replications){
+        		if(serverId == rep.id){
+        			req.incrementUpdateCount();
+        			if(rep.remove(key, (String)req.getValue()))
+        				handleMessage(req, "deleteReplication: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + key + ", " + req.getValue() + ">  is deleted from replication server.\n+++++++\n");
+        			else
+        				handleMessage(req, "deleteReplication: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + key + ", " + req.getValue()  + ">  not found.\n");
+        			
+        			if(req.getUpdateCount() == MaxServersToConnect){
+        				handleMessage(req, "deleteReplication: machine " + this.myId + " - drop package: request " + req.getRequestId() + ". Both replication servers are updated.\n-------------------\n");
+        				return;
+        			}
+        		}
+        	}
+		}
+    	
+    	// replication machine is not find in local, send it to the next live server
+    	String repAddres = getNextLiveAddress();
+    	req.updateProbe(this.myId);
+		try {
+        	handleMessage(req, "deleteReplication: machine " + this.myId + " - " + req.printRequest() + " routting to machine address " + repAddres + "\n");
+			IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
+					Naming.lookup("rmi://localhost:"+ repAddres +"/DistributedHashTable");
+	        dhtNextMachine.deleteReplication(req);
+		} catch (Exception e) {
+			handleMessage(req, "Error-deleteReplication: machine " + this.myId + " " +  e.getMessage());
+		}
+    }
+
+	/** 
      * purge local hash table
      */
-    public void purge(){
+    public void purge(IQueryRequest req) throws RemoteException{
         synchronized(this.cache) {
-            System.out.println("purge: machine " + this.myId + "\n");
+        	handleMessage(req, "purge: machine " + this.myId + "\n");
             this.cache.clear();
         }
+        IReplicationQueryRequest purgeRep = new ReplicationQueryRequest(req.getRequestId(), req.getMachineId(), null);
+        if(DebugMode)
+        	UnicastRemoteObject.exportObject(purgeRep);
+        purgeReplication(purgeRep);
+        handleMessage(req, purgeRep.getMessage());
+    }
+    
+    /** 
+     * purge replication cache
+     */
+    public void purgeReplication(IReplicationQueryRequest req) throws RemoteException{
+    	// drop the package, if the request is visited all servers
+		// or both replication servers are updated
+		if(req.getProbe().contains(this.myId)){
+			handleMessage(req, "purgeReplication: machine " + this.myId + " - drop package: request " + req.getRequestId() + ". Request visited all servers.\n-------------------\n");
+			return; 
+		}
+    	synchronized (replications) {
+        	for(ReplicationStorage rep: replications){
+        		if(req.getMachineId()  == rep.id){
+        			req.incrementUpdateCount();
+        			rep.clear();
+    				handleMessage(req, "purgeReplication: machine " + this.myId + " - request " + req.getRequestId() + ". purge repositroy " + req.getMachineId() + "\n" );
+        			if(req.getUpdateCount() == MaxServersToConnect){
+        				handleMessage(req, "purgeReplication: machine " + this.myId + " - drop package: request " + req.getRequestId() + ". Both replication servers are updated.\n-------------------\n");
+        				return;
+        			}
+        		}
+        	}
+		}
+    	
+    	String repAddres = getNextLiveAddress();
+    	req.updateProbe(this.myId);
+    	try {
+        	handleMessage(req, "purgeReplication: machine " + this.myId + " - request " + req.getRequestId() + " from machine "+ req.getMachineId() + " routting to machine address " + repAddres + "\n");
+			IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
+					Naming.lookup("rmi://localhost:"+ repAddres +"/DistributedHashTable");
+	        dhtNextMachine.purgeReplication(req);
+		} catch (Exception e) {
+			handleMessage(req, "Error-purgeReplication: machine " + this.myId + " " +  e.getMessage());
+		}
     }
 
     /** 
@@ -258,8 +466,9 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      */
     private void handleMessage(IQueryRequest req, String msg){
         try{
-            System.out.println(msg);
-            req.appendMessage(msg);
+        	utils.Output.println(msg);
+            if(DebugMode)
+            	req.appendMessage(msg);
         }catch(Exception e){ }
     }
     
@@ -272,6 +481,9 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	return (server < 0) ? server + this.sCount : server;
     }
     
+    /** 
+     * get next live machine from successor table
+     */
     private String getNextLiveAddress(){
     	for (Map.Entry<Integer, String> peer : this.successorTable.entrySet()) {
 			int id = peer.getKey();
@@ -280,33 +492,34 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 				return peer.getValue();
 			}
     	}
-    	return FailureDetectorThread.getBackupPeer().getValue();
+    	return this.backupSuccessor.getValue();
     }
     
     /** 
      * find the next machine from successor table for a key
-     * if next machine is not found, return the last server in the successor table
+     * if next machine is not found, return the last server in the successor table if it is a live machine
+     * otherwise ask the FD module for the back up server
      */
 	private Map.Entry<Integer, String> getNextMachine(int serverId,  String key){
 		Map.Entry<Integer, String> nextMachine = null;
 		for (Map.Entry<Integer, String> peer : this.successorTable.entrySet()) {
 			int id = peer.getKey();
 			// check if it is alive
-			//if(FailureDetector.isAlive(id)){
-				if(serverId == id){
-					return peer;
-				}
-				nextMachine = peer;
-			//}
+			if(serverId == id)
+				return peer;
+			nextMachine = peer;
 		} 
-		// send the request to the last machine in successor 
-		if(nextMachine != null)
+		// send the request to the last machine in successor  if it is alive
+		if(nextMachine != null && FailureDetectorThread.isAlive(nextMachine.getKey()))
 			return nextMachine;
-		// all successors are off line, then send the request to the backup peer.
-		return null;//FailureDetector.getBackupPeer().getValue();
+		// all successors are off line, then send the request to the backup successor.
+		return this.backupSuccessor;
 		
 	}
 	
+	/** 
+     * split the string and remove stop words
+     */
 	private String[] splitWithStopWords(String s){
 		List<String> res = new ArrayList<String>();
 		for(String word: s.split(" "))
@@ -315,7 +528,6 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 				res.add(word);
 			}
 		}
-		
 		return res.toArray(new String[res.size()]);
 	}
 }

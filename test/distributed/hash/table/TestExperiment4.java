@@ -40,7 +40,8 @@ public class TestExperiment4 extends TestExperiment{
         
         for (int i = 0; i < mServerCount; i++) {
             try {
-                mDhtClientArray[i].purge();
+            	IQueryRequest purgeReq = new QueryRequest(mRequestId++, i, null);
+                mDhtClientArray[i].purge(purgeReq);
             } catch (RemoteException e) {
                 e.printStackTrace();
                 System.out.println("dhtClient: " +  e.getMessage());
@@ -53,7 +54,7 @@ public class TestExperiment4 extends TestExperiment{
                 int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
 
-                IInsertRequest req = new InsertRequest(mRequestId++, machineId, "" + i, i);
+                IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, "" + i, i);
                 mDhtClientArray[machineClientId].insert(req);
             }  catch(Exception e) {
                 e.printStackTrace();

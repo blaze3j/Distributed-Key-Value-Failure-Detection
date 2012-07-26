@@ -1,5 +1,7 @@
 package distributed.hash.table;
 
+import java.rmi.RemoteException;
+
 /** 
  * Implementation of RMI query request
  */
@@ -44,11 +46,11 @@ public class QueryRequest implements IQueryRequest{
      * Get message of the request
      */
 	public String getMessage(){return this.message;}
-	
+		
 	/** 
      * Generate and return a user friendly string of the request
      */
-	public String printRequest() {return "request " + this.getRequestId() + 
+	public String printRequest() throws RemoteException {return "request " + this.getRequestId() + 
 			" from machine " + this.getMachineId() + 
 			" for key " + this.getKey();
 	}

@@ -15,6 +15,8 @@ import distributed.hash.table.*;
 
 // Interactive Client application for Distributed hash table
 public class DHTInteractiveClient extends JFrame{
+	private static boolean DebugMode;
+	
     private int mServerCount;
     public int[] mPortMap;
     private IDistributedHashTable[] mDhtServerArray = null;
@@ -75,6 +77,7 @@ public class DHTInteractiveClient extends JFrame{
 		pane.add(valueLabel, c);		
 		c.gridx = 1;
 		pane.add(valueBox, c);
+		valueBox.setEditable(false);
 		
 		c.gridx = 0;
 		c.gridy = 2;
@@ -185,12 +188,14 @@ public class DHTInteractiveClient extends JFrame{
 	// server: id of server to insert the key
 	private void sendInsertRequest(String key, Object value, int server)
 	{
-		IInsertRequest insReq = new InsertRequest(mRequestId++, server, key, value);
+		IInsertDeleteRequest insReq = new InsertDeleteRequest(mRequestId++, server, key, key);
 		try {
 			if(mDhtServerArray[server-1] != null){
-				UnicastRemoteObject.exportObject(insReq);
+				if(DebugMode)
+					UnicastRemoteObject.exportObject(insReq);
 				mDhtServerArray[server-1].insert(insReq);
-				appendOutput("DHT Server:\n" + insReq.getMessage());
+				if(DebugMode)
+					appendOutput("DHT Server:\n" + insReq.getMessage());
 			}
 			else
 				appendOutput("sendInsertRequest: server " + server + " is not initialized");
@@ -204,12 +209,14 @@ public class DHTInteractiveClient extends JFrame{
 	// server: id of server to delete the key
 	private void sendDeleteRequest(String key, int server)
 	{
-		IQueryRequest queryReq = new QueryRequest(mRequestId++, server, key);
+		IInsertDeleteRequest queryReq = new InsertDeleteRequest(mRequestId++, server, key, key);
 		try {
 			if(mDhtServerArray[server-1] != null){
-				UnicastRemoteObject.exportObject(queryReq);
+				if(DebugMode)
+					UnicastRemoteObject.exportObject(queryReq);
 				mDhtServerArray[server-1].delete(queryReq);
-				appendOutput("DHT Server:\n" + queryReq.getMessage());
+				if(DebugMode)
+					appendOutput("DHT Server:\n" + queryReq.getMessage());
 			}
 			else
 				appendOutput("sendDeleteRequest: server " + server + " is not initialized");
@@ -226,17 +233,20 @@ public class DHTInteractiveClient extends JFrame{
 		IQueryRequest queryReq = new QueryRequest(mRequestId++, server, key);
 		try {
 			if(mDhtServerArray[server-1] != null){
-				UnicastRemoteObject.exportObject(queryReq);
+				if(DebugMode)
+					UnicastRemoteObject.exportObject(queryReq);
 				ArrayList<String> values = (ArrayList<String>)mDhtServerArray[server-1].lookup(queryReq);
-				String msg = "\t";
+				String msg = "";
 				if(values != null){
 					for(String value: values)
-						msg += value + " ,";
+						msg += "\t" + value + " \n";
 					msg = msg.substring(0, msg.length() - 2);
 				}
 				else
-					msg += "null";
-				appendOutput("DHT Server:\n" + queryReq.getMessage() + "\nDHT Client:\nlookup value is:\n" + msg );
+					msg += "\tnull";
+				if(DebugMode)
+					appendOutput("DHT Server:\n" + queryReq.getMessage() + "\n");
+				appendOutput("DHT Client:\nlookup value is:\n" + msg );
 			}
 			else
 				appendOutput("sendLookupRequest: server " + server + " is not initialized");			
@@ -270,8 +280,12 @@ public class DHTInteractiveClient extends JFrame{
 		for(int i = 0; i < mServerCount; i ++){
 			if(mDhtServerArray[i] != null){
 				try {
-					mDhtServerArray[i].purge();
-					appendOutput("purge: machine " + (i+1));
+					IQueryRequest purgeQuery = new QueryRequest(mRequestId++, i+1, null);
+					if(DebugMode)
+						UnicastRemoteObject.exportObject(purgeQuery);
+					mDhtServerArray[i].purge(purgeQuery);
+					if(DebugMode)
+						appendOutput("DHT Server:\n" + purgeQuery.getMessage());
 				} catch (Exception e1) {
 					appendOutput("purge server " + (i+1) + " " + e1.getMessage());
 				}
@@ -292,7 +306,7 @@ public class DHTInteractiveClient extends JFrame{
         public void actionPerformed(ActionEvent e) {
         	String action = e.getActionCommand();
         	if(action == "insert"){
-        		valueBox.setEnabled(true);
+        		valueBox.setEnabled(false);
         		keyBox.setEnabled(true);
         	}
         	else if(action == "lookup"){
@@ -325,10 +339,10 @@ public class DHTInteractiveClient extends JFrame{
         		if(!validateKey()){
         			return;
         		}
-        		else if(value.isEmpty()){
-        			JOptionPane.showMessageDialog(null, "Please insert value");
-        			return;
-        		}
+//        		else if(value.isEmpty()){
+//        			JOptionPane.showMessageDialog(null, "Please insert value");
+//        			return;
+//        		}
         		if(!validateServer()){
         			return;
         		}
@@ -400,7 +414,7 @@ public class DHTInteractiveClient extends JFrame{
 
 	public static void main(String[] args) {
 		String clientSettingFile = "";
-		GetOpt getopt = new GetOpt(args, "f:");
+		GetOpt getopt = new GetOpt(args, "f:r:");
 		try {
 			int c;
 			while ((c = getopt.getNextOption()) != -1) {
@@ -408,8 +422,12 @@ public class DHTInteractiveClient extends JFrame{
 			    case 'f':
 			    	clientSettingFile = getopt.getOptionArg();
 			        break;
+			    case 'r':
+			    	String s = getopt.getOptionArg();
+	            	DebugMode = (s == "debug");
+	                break;
+	                
 			    }
-			    
 			}
 		} catch (Exception e1) {
 			e1.printStackTrace();

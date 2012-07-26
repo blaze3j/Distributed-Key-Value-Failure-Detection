@@ -54,7 +54,7 @@ class ClientThread extends Thread {
     public void run() {
         for (int i = mMinRange; i < mMaxRange; i++)
         {
-            IInsertRequest req = new InsertRequest(i, mMachineId, "" + i, i);
+            IInsertDeleteRequest req = new InsertDeleteRequest(i, mMachineId, "" + i, i);
             try {
                 mDhtClient.insert(req);
             } catch (RemoteException e) {

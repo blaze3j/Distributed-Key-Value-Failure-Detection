@@ -3,7 +3,6 @@ import com.sun.org.apache.xalan.internal.xsltc.cmdline.getopt.GetOpt;
 
 import failure.detector.*;
 
-
 public class FailureDetectorServer {
 	private static int serverId;
 	private static FailureDetectorThread failureDetectorThread = null;

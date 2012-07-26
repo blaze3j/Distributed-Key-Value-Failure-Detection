@@ -25,9 +25,10 @@ public class DHTAndFDServer {
     private static int serverCount;
     private static LinkedHashMap<Integer, String> successor;
     private static FailureDetectorThread failureDetectorThread;
+    public static boolean DebugMode;
     
     public static void main(String[] args) {
-        GetOpt getopt = new GetOpt(args, "i:d:f:c:");
+        GetOpt getopt = new GetOpt(args, "i:d:f:c:r:");
         serverId = 1;
         try {
             int c;
@@ -44,6 +45,10 @@ public class DHTAndFDServer {
                     break;
                 case 'd':
                     serverFDSettingFile = getopt.getOptionArg();
+                    break;
+                case 'r':
+                	String s = getopt.getOptionArg();
+                	DebugMode = (s.equals("debug"));
                     break;
                 }
 
@@ -104,7 +109,7 @@ public class DHTAndFDServer {
         }
         
         failureDetectorThread.start();
-        
+        DistributedHashTable.DebugMode = DebugMode;
         try{
             // initialize the server for this process
             DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverCount, successor);

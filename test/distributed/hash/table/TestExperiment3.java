@@ -39,8 +39,8 @@ public class TestExperiment3 extends TestExperiment {
         int count = 0;
         for (int i = 0; i < mServerCount; i++) {
             try {
-                mDhtClientArray[i].purge();
-            } catch (RemoteException e) {
+            	IQueryRequest purgeReq = new QueryRequest(mRequestId++, i, null);
+                mDhtClientArray[i].purge(purgeReq);            } catch (RemoteException e) {
                 e.printStackTrace();
                 System.out.println("dhtClient: " +  e.getMessage());
             }
@@ -59,7 +59,7 @@ public class TestExperiment3 extends TestExperiment {
                     i--;
                     continue;
                 }
-                IInsertRequest req = new InsertRequest(mRequestId++, machineId, "" + key, 1);
+                IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, "" + key, 1);
                 mDhtClientArray[machineClientId].insert(req);
             }  catch(RemoteException e) {
                 e.printStackTrace();

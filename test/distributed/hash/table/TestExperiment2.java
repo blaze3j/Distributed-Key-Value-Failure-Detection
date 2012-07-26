@@ -36,8 +36,8 @@ public class TestExperiment2 extends TestExperiment {
     public void testExperiment2() {
         for (int i = 0; i < mServerCount; i++) {
             try {
-                mDhtClientArray[i].purge();
-            } catch (RemoteException e) {
+            	IQueryRequest purgeReq = new QueryRequest(mRequestId++, i, null);
+                mDhtClientArray[i].purge(purgeReq);            } catch (RemoteException e) {
                 e.printStackTrace();
                 System.out.println("dhtClient: " +  e.getMessage());
             }
@@ -50,14 +50,15 @@ public class TestExperiment2 extends TestExperiment {
                 int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
                 int key = mRandom.nextInt(1000000) + 1;
-                IInsertRequest req = new InsertRequest(mRequestId++, machineId, "" + key, 1);
+                IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, "" + key, 1);
 
                 mStopwatch.start(); 
                 mDhtClientArray[machineClientId].insert(req);
                 mStopwatch.stop();
                 System.out.println("DHTServer[" + machineId + "] insert on empty took " + mStopwatch.getElapsedTime());
 
-                mDhtClientArray[machineClientId].purge();
+            	IQueryRequest purgeReq = new QueryRequest(mRequestId++, machineClientId, null);                
+                mDhtClientArray[machineClientId].purge(purgeReq);
                 assertTrue(0 == mDhtClientArray[machineClientId].count());
             }  catch(RemoteException e) {
                 e.printStackTrace();
