@@ -514,7 +514,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     private int getServer(String key){
     	int hash = key.hashCode();
     	int server =(hash % this.sCount) + 1;
-    	return (server <= 0) ? server + this.sCount : server;
+    	return ( server <= 0 ) ? server + this.sCount : server;
     }
     
     /** 
