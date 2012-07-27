@@ -54,7 +54,7 @@ public class ReplicationStorage {
      */
     public boolean remove(String key, String value, boolean isDirty){
     	if(isDirty){
-    		remove(this.dirtyDeleteCache, key, value);
+    		insert(this.dirtyDeleteCache, key, value);
     		utils.Output.print("remove dirty - ReplicationStorage: machine " + this.id + ", " + key + " is deleted\n");
     	}
     	
@@ -66,14 +66,55 @@ public class ReplicationStorage {
     }
 
     /** 
+     * get list of dirty inserts 
+     */
+    public Hashtable<String, List<String>> getDirtyInsertCache(){
+    	return this.dirtyInsertCache;
+    }
+    
+    /** 
+     * get list of dirty deletes 
+     */
+    public Hashtable<String, List<String>> getDirtyDeleteCache(){
+    	return this.dirtyDeleteCache;
+    }
+    
+    /** 
+     * clear dirty inserts
+     */
+    public void clearDirtyInsert(){
+    	synchronized (this.dirtyInsertCache) {
+        	this.dirtyInsertCache.clear();
+		}
+    }
+     
+     /** 
+      * clear dirty deletes
+      */
+     public void clearDirtyDelete(){
+     	synchronized (this.dirtyDeleteCache) {
+         	this.dirtyDeleteCache.clear();
+ 		}
+     }
+    
+    /** 
      * clear replication cache
      */
     public void clear(){
     	synchronized (this.localCache) {
-        	this.localCache.clear();	
+        	this.localCache.clear();
+		}
+    	synchronized (this.dirtyInsertCache) {
+        	this.dirtyInsertCache.clear();
+		}
+    	synchronized (this.dirtyDeleteCache) {
+        	this.dirtyDeleteCache.clear();
 		}
     }
 
+    /** 
+     * insert an entity to a cache
+     */
     private boolean insert(Hashtable<String, List<String>> cache, String key, String value){
     	synchronized (cache) {
         	List<String> values = cache.get(key);
@@ -89,6 +130,9 @@ public class ReplicationStorage {
     	return false;
     }
     
+    /** 
+     * remove an entity to a cache
+     */
     private boolean remove(Hashtable<String, List<String>> cache, String key, String value){
     	synchronized (cache) {
 	    	List<String> values = cache.get(key);

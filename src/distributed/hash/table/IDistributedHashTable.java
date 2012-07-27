@@ -2,6 +2,8 @@ package distributed.hash.table;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.Hashtable;
+import java.util.List;
 
 /** Interface RMI of distributed hash table
  *  
@@ -28,5 +30,8 @@ public interface IDistributedHashTable extends Remote {
 	        throws java.rmi.RemoteException;
 	public boolean purgeReplication(IReplicationQueryRequest req)
 		throws java.rmi.RemoteException;
-	
+	public boolean updateDirtyInsertCache(int senderId, Hashtable<String, List<String>> dirtyInserts)
+			throws java.rmi.RemoteException;
+	public boolean updateDirtyDeleteCache(int senderId, Hashtable<String, List<String>> dirtyDeletes)
+			throws java.rmi.RemoteException;
 }

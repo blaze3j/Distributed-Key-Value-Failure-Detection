@@ -4,6 +4,9 @@ import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+import java.util.Map.Entry;
+
+import javax.swing.SwingWorker;
 
 import failure.detector.FailureDetectorThread;
 import failure.detector.ServerJoinEvent;
@@ -322,24 +325,13 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     		word = word.trim();
     		int serverId = getServer(word);
 	    	if(serverId  == this.myId){
-	            synchronized(this.localCache) {
-	                if(this.localCache.containsKey(word)){
-	                    List<String> values = this.localCache.get(word);
-	                    if(values.contains(value))
-	                    {
-	            			handleMessage(req, "delete: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + ", "+ req.getValue() + ">  is deleted.\n+++++++ Update Replication.\n");
-	                    	values.remove(value);
-	                    	if(values.size() == 0)
-	                    		this.localCache.remove(word);
-	                    	// update repository servers
-		                	doDeleteReplication(req, word, value, false);
-	                    }
-	                    else
-	                    	handleMessage(req, "delete: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + ", "+ req.getValue() + ">  not found.\n");
-	                }
-	                else
-                    	handleMessage(req, "delete: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + ", "+ req.getValue() + ">  not found.\n");	            
-	            }
+                if(delete(this.localCache, word, value)){
+        			handleMessage(req, "delete: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + ", "+ req.getValue() + ">  is deleted.\n+++++++ Update Replication.\n");
+                	// update repository servers
+                	doDeleteReplication(req, word, value, false);
+                }
+                else
+                	handleMessage(req, "delete: machine " + this.myId + " - request " + req.getRequestId() + " from machine " + req.getMachineId() + " with <" + word + ", "+ req.getValue() + ">  not found.\n");
 	        }
 	        else{
 	        	// go to the next machine for lookup
@@ -369,6 +361,21 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	}
     }
 
+    private boolean delete(Hashtable<String, List<String>> cache, String key, String value){
+    	synchronized (cache) {
+    		if(cache.containsKey(key)){
+                List<String> values = cache.get(key);
+                if(values.contains(value)){
+                	values.remove(value);
+                	if(values.size() == 0)
+                		cache.remove(key);
+                	return true;
+                }
+            }
+    	}
+    	return false;
+    }
+    
     /** 
      * create an delete query replication request and send the request to update replication servers
      */
@@ -572,5 +579,82 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      */	
 	public void onServerJoin(ServerJoinEvent e){
 		utils.Output.println("DistributedHashTable - onServerJoin: server " +  e.getServerId() + " joind");
+		int serverId = e.getServerId();
+		// skip if back up successor comes back online
+		if(serverId == this.backupSuccessor.getKey())
+			return;
+
+		String onlineServerAddress =  this.successorTable.get(serverId);
+		ReplicationStorage repServer = null;
+		for(ReplicationStorage rep: this.replications)
+			if(rep.id == serverId){
+				repServer = rep;
+				break;
+			}
+		
+		try {
+			IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
+					Naming.lookup("rmi://localhost:"+ onlineServerAddress +"/DistributedHashTable");
+	        // update dirty insert cache on the server that joins to the ring
+	        if(repServer.getDirtyInsertCache().size() > 0 &&
+	        		dhtNextMachine.updateDirtyInsertCache(this.myId , repServer.getDirtyInsertCache())){
+	        	// delete dirty inserts as master server gets the updates
+	        	repServer.clearDirtyInsert();
+	        }
+	        // update dirty delete cache on the server that joins to the ring 
+	        if(repServer.getDirtyDeleteCache().size() > 0 &&
+	        		dhtNextMachine.updateDirtyDeleteCache(this.myId, repServer.getDirtyDeleteCache())){
+	        	// delete dirty deletes as master server gets the updates
+	        	repServer.clearDirtyDelete();
+	        }
+		} catch (Exception e1) {
+			e1.printStackTrace();
+			utils.Output.println("Error-onServerJoin: machine " + this.myId + " - server" + serverId + " failed to update dirty updates " + e1.getMessage()); 
+		}
+		
+	}
+
+	/** 
+     * update dirty insert cache when this server joins back to the ring
+     */	
+	public boolean updateDirtyInsertCache(final int senderId, final Hashtable<String, List<String>> dirtyInserts) throws RemoteException {		
+		SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {            
+			@Override
+			protected Boolean doInBackground() throws Exception {
+				Iterator<Entry<String, List<String>>> it = dirtyInserts.entrySet().iterator();
+				while (it.hasNext()) {
+					Entry<String, List<String>> entry = it.next();
+					for(String value: entry.getValue()){
+						utils.Output.println("updateDirtyInsertCache: machine " + myId + " - from server " + senderId + " insert dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">.");
+						insert(localCache, entry.getKey(), value);
+					}
+				}
+				return true;
+			}
+        };
+        worker.execute();
+        return true;
+	}
+
+	/** 
+     * update dirty delete cache when this server joins back to the ring
+     */ 
+	public boolean updateDirtyDeleteCache(final int senderId, final Hashtable<String, List<String>> dirtyDeletes) throws RemoteException {
+		SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {            
+			@Override
+			protected Boolean doInBackground() throws Exception {
+				Iterator<Entry<String, List<String>>> it = dirtyDeletes.entrySet().iterator();
+				while (it.hasNext()) {
+					Entry<String, List<String>> entry = it.next();
+					for(String value: entry.getValue()){
+						utils.Output.println("updateDirtyDeleteCache: machine " + myId + " - from server " + senderId + " delete dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">."); 
+						delete(localCache, entry.getKey(), value);
+					}
+				}
+				return true;
+			}
+        };
+        worker.execute();
+        return true;
 	}
 }

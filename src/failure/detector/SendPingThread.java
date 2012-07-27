@@ -86,8 +86,14 @@ public class SendPingThread extends Thread{
 				}
 			}
 			// if there is at lease one failed server, try to reconstruct it. May be failed servers are back now
-			if(failedServer.size() > 0)
+			if(failedServer.size() > 0){
+				try {
+					sleep(1000);
+				} catch (InterruptedException e) {
+					utils.Output.println("Send Thread: " + e.getMessage());
+				}
 				reconstructRing();
+			}
 				
 			try {
 				sleep(3000);
