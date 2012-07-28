@@ -66,6 +66,20 @@ public class ReplicationStorage {
     }
 
     /** 
+     * get id 
+     */
+    public int getId()
+    {
+        return this.id;
+    }
+    
+    /** 
+     * get list of dirty inserts 
+     */
+    public Hashtable<String, ArrayList<String>> getLocalCache(){
+        return this.localCache;
+    }
+    /** 
      * get list of dirty inserts 
      */
     public Hashtable<String, ArrayList<String>> getDirtyInsertCache(){

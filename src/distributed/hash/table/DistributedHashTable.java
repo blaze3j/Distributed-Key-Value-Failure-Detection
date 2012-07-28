@@ -35,6 +35,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     private String myAddress;
     private int sCount;
     private int joinServerId;
+    private PersistentStorageManager persistentManager;
 
     /** 
      * Constructor
@@ -53,10 +54,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         this.dirtyDeleteCache =  new Hashtable<String, ArrayList<String>>();
         replications = new ArrayList<ReplicationStorage>();
         this.successorTable = new LinkedHashMap<Integer, String>();
-
+        
         this.myId = id;
         this.myAddress = address;
         this.sCount = serverCount;
+        this.persistentManager = new PersistentStorageManager(5);
         
         handleMessage(null, "DHT server id: " + this.myId + " is created.");
 		int i = 1;
@@ -74,8 +76,21 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 		}
 		
 		// sync replications with master server
-		for (ReplicationStorage rep: replications)
+		for (ReplicationStorage rep: replications) {
 			syncReplicationServer(rep);
+			
+	        // register data structures for persistent storage
+            this.persistentManager.register(this.myId + "_" + rep.getId() + "_localCache.bkp", rep.getLocalCache());
+            this.persistentManager.register(this.myId + "_" + rep.getId() + "_dirtyInsertCache.bkp", rep.getDirtyInsertCache());
+            this.persistentManager.register(this.myId + "_" + rep.getId() + "_dirtyDeleteCache.bkp", rep.getDirtyDeleteCache());			
+		}
+		
+		// register data structures for persistent storage
+		this.persistentManager.register(this.myId + "_" + this.myId + "_localCache.bkp", localCache);
+		this.persistentManager.register(this.myId + "_" + this.myId + "_dirtyInsertCache.bkp", dirtyInsertCache);
+		this.persistentManager.register(this.myId + "_" + this.myId + "_dirtyDeleteCache.bkp", dirtyDeleteCache);
+		
+		this.persistentManager.run();
     }
 
     /** 
