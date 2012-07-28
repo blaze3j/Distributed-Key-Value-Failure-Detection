@@ -1,6 +1,5 @@
 package distributed.hash.table;
 
-
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -90,7 +89,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 		this.persistentManager.register(this.myId + "_" + this.myId + "_dirtyInsertCache.bkp", dirtyInsertCache);
 		this.persistentManager.register(this.myId + "_" + this.myId + "_dirtyDeleteCache.bkp", dirtyDeleteCache);
 		
-		this.persistentManager.run();
+		this.persistentManager.start();
     }
 
     /** 
