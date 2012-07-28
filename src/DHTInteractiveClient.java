@@ -25,10 +25,8 @@ public class DHTInteractiveClient extends JFrame{
 
 	private static final long serialVersionUID = 1L;
 	private JTextField keyBox;
-	private JTextField valueBox;
 	private JTextField serverBox;
 	private JLabel keyLabel;
-	private JLabel valueLabel;
 	private JLabel serverLabel;
 	private JLabel serverOutput;
 	private JButton execButton;
@@ -53,13 +51,10 @@ public class DHTInteractiveClient extends JFrame{
 	private void initComponents(){
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setTitle("Distributed Hash Table Client");
-		keyBox = new JTextField(7);
-		valueBox = new JTextField(15);
+		keyBox = new JTextField(25);
 		serverBox = new JTextField(2);
 		keyLabel = new JLabel("Key: ");
 		keyLabel.setLabelFor(keyBox);
-		valueLabel = new JLabel("Value: ");
-		valueLabel.setLabelFor(valueBox);
 		serverLabel = new JLabel("Server Id: ");
 		serverLabel.setLabelFor(serverBox);
 		serverOutput = new JLabel("Server Output:"); 
@@ -72,16 +67,9 @@ public class DHTInteractiveClient extends JFrame{
 		pane.add(keyLabel, c);		
 		c.gridx = 1;
 		pane.add(keyBox, c);
-		
+				
 		c.gridx = 0;
 		c.gridy = 1;
-		pane.add(valueLabel, c);		
-		c.gridx = 1;
-		pane.add(valueBox, c);
-		valueBox.setEditable(false);
-		
-		c.gridx = 0;
-		c.gridy = 2;
 		pane.add(serverLabel, c);		
 		c.gridx = 1;
 		pane.add(serverBox, c);
@@ -192,7 +180,7 @@ public class DHTInteractiveClient extends JFrame{
 	// server: id of server to insert the key
 	private void sendInsertRequest(String key, Object value, int server)
 	{
-		IInsertDeleteRequest insReq = new InsertDeleteRequest(mRequestId++, server, key, key);
+		IInsertDeleteRequest insReq = new InsertDeleteRequest(mRequestId++, server, key, value);
 		try {
 			if(mDhtServerArray[server-1] != null){
 				if(DebugMode)
@@ -209,7 +197,6 @@ public class DHTInteractiveClient extends JFrame{
 	}
 	
 	// send a delete request to a server
-	// 1 < key < max key number
 	// server: id of server to delete the key
 	private void sendDeleteRequest(String key, int server)
 	{
@@ -230,7 +217,6 @@ public class DHTInteractiveClient extends JFrame{
 	}
 	
 	// send a lookup request to a server
-	// 1 < key < max key number
 	// server: id of server to lookup the key
 	private void sendLookupRequest(String key, int server)
 	{
@@ -260,7 +246,6 @@ public class DHTInteractiveClient extends JFrame{
 	}
 	
 	// send a count request to a server
-	// 1 < key < max key number
 	// server: id of server to count the number of entities
 	private void sendCountRequest(int server)
 	{
@@ -277,7 +262,6 @@ public class DHTInteractiveClient extends JFrame{
 	}
 
 	// send a purge request to a server
-	// 1 < key < max key number
 	// server: id of server to purge data
 	private void sendPurgeRequest()
 	{
@@ -308,23 +292,16 @@ public class DHTInteractiveClient extends JFrame{
         public void actionPerformed(ActionEvent e) {
         	String action = e.getActionCommand();
         	if(action == "insert"){
-        		valueBox.setEnabled(false);
         		keyBox.setEnabled(true);
         	}
         	else if(action == "lookup"){
-        		valueBox.setText("");
-        		valueBox.setEnabled(false);
         		keyBox.setEnabled(true);
         	}
         	else if(action == "delete"){
-        		valueBox.setText("");
-        		valueBox.setEnabled(false);
         		keyBox.setEnabled(true);
         	}
         	else if(action == "count"){
-        		valueBox.setText("");
         		keyBox.setText("");
-        		valueBox.setEnabled(false);
         		keyBox.setEnabled(false);
         	}
         }
@@ -343,20 +320,15 @@ public class DHTInteractiveClient extends JFrame{
         public void actionPerformed(ActionEvent e) {
         	String action = actionGroup.getSelection().getActionCommand();
         	String key = keyBox.getText();
-        	String value = valueBox.getText();
         	String server = serverBox.getText();
         	if(action == "insert"){
         		if(!validateKey()){
         			return;
         		}
-//        		else if(value.isEmpty()){
-//        			JOptionPane.showMessageDialog(null, "Please insert value");
-//        			return;
-//        		}
         		if(!validateServer()){
         			return;
         		}
-        		sendInsertRequest(key, value, Integer.parseInt(server));
+        		sendInsertRequest(key, key, Integer.parseInt(server));
         	}
         	else if(action == "lookup"){
         		if(!validateKey()){

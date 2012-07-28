@@ -30,15 +30,19 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     private Hashtable<String, ArrayList<String>> dirtyDeleteCache; // stores deleted data that is not populated on replication machines
     private List<ReplicationStorage> replications;
     private LinkedHashMap<Integer, String> successorTable; // <id, address>
-	Map.Entry<Integer, String> backupSuccessor; // the back up server if a live server failed
+    private Map.Entry<Integer, String> backupSuccessor; // the back up server if a live server failed
     private int myId;
     private String myAddress;
     private int sCount;
     private int joinServerId;
 
+    /** 
+     * Constructor
+     */
     public DistributedHashTable(int id, int port, int serverCount, LinkedHashMap<Integer, String> successors) throws java.rmi.RemoteException {
     	this(id, "" + port, serverCount, successors);
     }
+    
     /** 
      * Constructor
      */
@@ -878,6 +882,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * creates a deep copy of cache
      */
 	private Hashtable<String, ArrayList<String>> deepCopy(Hashtable<String, ArrayList<String>> original){
+		
 		Hashtable<String, ArrayList<String>> copy = new Hashtable<String, ArrayList<String>>(original.size());
 		synchronized (original){
 			for(Map.Entry<String, ArrayList<String>> entry : original.entrySet()) {
@@ -912,6 +917,6 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 				res = rep.getDirtyInsertCache();
 			}
 		}
-		return res;	}
-
+		return res;	
+	}
 }
