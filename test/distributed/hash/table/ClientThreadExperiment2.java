@@ -67,9 +67,9 @@ class ClientThreadExperiment2 extends Thread {
         {
             int machineClientId = mRandom.nextInt(mServerCount);
             int machineId = machineClientId + 1;
-            int key = mRandom.nextInt(1000000) + 1;
+            String key = "" + (mRandom.nextInt(1000000) + 1);
             
-            IInsertDeleteRequest req = new InsertDeleteRequest(i, machineId, "" + key, key);
+            IInsertDeleteRequest req = new InsertDeleteRequest(i, machineId, key, key);
             try {
                 mStopwatch.start(); 
                 mDhtClientArray[machineClientId].insert(req);

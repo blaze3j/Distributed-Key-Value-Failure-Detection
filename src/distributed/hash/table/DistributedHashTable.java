@@ -513,7 +513,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     public int count(){
         synchronized(this.localCache) {
             int n = this.localCache.size();
-            System.out.println("count: machine " + this.myId + " is " + n +"\n");
+            handleMessage(null, "count: machine " + this.myId + " is " + n +"\n");
             return n;
         }
     }

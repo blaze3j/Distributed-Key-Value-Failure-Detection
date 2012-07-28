@@ -52,8 +52,8 @@ public class TestExperiment4 extends TestExperiment{
             try {
                 int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
-
-                IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, "" + i, i);
+                String key = "" + i;
+                IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, key, key);
                 mDhtClientArray[machineClientId].insert(req);
             }  catch(Exception e) {
                 e.printStackTrace();
