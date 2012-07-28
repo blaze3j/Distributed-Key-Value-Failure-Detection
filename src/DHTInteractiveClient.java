@@ -13,7 +13,9 @@ import com.sun.org.apache.xalan.internal.xsltc.cmdline.getopt.GetOpt;
 
 import distributed.hash.table.*;
 
-// Interactive Client application for Distributed hash table
+/**
+ * Interactive Client application for Distributed hash table
+ */
 public class DHTInteractiveClient extends JFrame{
 	private static boolean DebugMode;
 	
