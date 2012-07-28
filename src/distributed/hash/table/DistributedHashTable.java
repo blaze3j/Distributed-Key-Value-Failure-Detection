@@ -1,11 +1,11 @@
 package distributed.hash.table;
 
+
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.Map.Entry;
-
 import javax.swing.SwingWorker;
 
 import failure.detector.FailureDetectorThread;
@@ -25,45 +25,55 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 	
     private static final long serialVersionUID = 1L;
 	private static final int MaxServersToConnect = 2;
-    private Hashtable<String, List<String>> localCache;
-    private Hashtable<String, List<String>> dirtyInsertCache; // stores inserted data that is not populated on replication machines
-    private Hashtable<String, List<String>> dirtyDeleteCache; // stores deleted data that is not populated on replication machines
+    private Hashtable<String, ArrayList<String>> localCache;
+    private Hashtable<String, ArrayList<String>> dirtyInsertCache; // stores inserted data that is not populated on replication machines
+    private Hashtable<String, ArrayList<String>> dirtyDeleteCache; // stores deleted data that is not populated on replication machines
     private List<ReplicationStorage> replications;
     private LinkedHashMap<Integer, String> successorTable; // <id, address>
 	Map.Entry<Integer, String> backupSuccessor; // the back up server if a live server failed
     private int myId;
+    private String myAddress;
     private int sCount;
+    private int joinServerId;
 
+    public DistributedHashTable(int id, int port, int serverCount, LinkedHashMap<Integer, String> successors) throws java.rmi.RemoteException {
+    	this(id, "" + port, serverCount, successors);
+    }
     /** 
      * Constructor
      */
-    public DistributedHashTable(int id, int serverCount, LinkedHashMap<Integer, String> successors) throws java.rmi.RemoteException {
+    public DistributedHashTable(int id, String address, int serverCount, LinkedHashMap<Integer, String> successors) throws java.rmi.RemoteException {
         super(); 
-        this.localCache = new Hashtable<String, List<String>>();
-        this.dirtyInsertCache =  new Hashtable<String, List<String>>();
-        this.dirtyDeleteCache =  new Hashtable<String, List<String>>();
+        this.localCache = new Hashtable<String, ArrayList<String>>();
+        this.dirtyInsertCache =  new Hashtable<String, ArrayList<String>>();
+        this.dirtyDeleteCache =  new Hashtable<String, ArrayList<String>>();
         replications = new ArrayList<ReplicationStorage>();
         this.successorTable = new LinkedHashMap<Integer, String>();
 
         this.myId = id;
+        this.myAddress = address;
         this.sCount = serverCount;
         
-        utils.Output.println("DHT server id: " + this.myId + " is created.");
+        handleMessage(null, "DHT server id: " + this.myId + " is created.");
 		int i = 1;
 		// <id, address> address can be name:port. For now assumption is address is just port
 		for (Map.Entry<Integer, String> successor : successors.entrySet()) {
 			if(i++ <= MaxServersToConnect){
 				this.successorTable.put(successor.getKey(), successor.getValue());
 				replications.add(new ReplicationStorage(successor.getKey(), "", Integer.parseInt(successor.getValue())));
-				utils.Output.println(" successor " + successor.getKey()  + " on port " + successor.getValue() + " is added.");
+				handleMessage(null, " successor " + successor.getKey()  + " on port " + successor.getValue() + " is added.");
 			}
 			else{
-				utils.Output.println(" backup successor " + successor.getKey()  + " on port " + successor.getValue() + " is added.");
+				handleMessage(null, " backup successor " + successor.getKey()  + " on port " + successor.getValue() + " is added.");
 				this.backupSuccessor = successor;
 			}
 		}
+		
+		// sync replications with master server
+		for (ReplicationStorage rep: replications)
+			syncReplicationServer(rep);
     }
-    
+
     /** 
      * insert an entity on the local hash table if it in the range of this machine,
      * or send the request to the next server that key belongs to if it is not in this server.
@@ -90,7 +100,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
             	// go to the next machine for insert
                 try {                	
                 	Map.Entry<Integer, String> nextMachine = getNextMachine(serverId, word);
-	                if(nextMachine.getKey() == serverId && !FailureDetectorThread.isAlive(serverId)){
+	                if(nextMachine.getKey() == serverId && !FailureDetectorThread.isServerAlive(serverId)){
 	                	// server is off line, updates the replication machines
 	            		handleMessage(req, "insert: machine " + this.myId + " - server " + serverId + " is failed. Insert replications.\n");
 	            		doInsertReplication(req, word, true);
@@ -114,9 +124,11 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	}
     }
     
-    private boolean insert(Hashtable<String, List<String>> cache, String key, String value){
+    /** insert an entry to the cache
+     */	
+    private boolean insert(Hashtable<String, ArrayList<String>> cache, String key, String value){
     	synchronized (cache) {
-        	List<String> values = cache.get(key);
+    		ArrayList<String> values = cache.get(key);
             if(values == null){
             	values = new ArrayList<String>();
             	cache.put(key, values);
@@ -219,7 +231,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
             try {
             	Map.Entry<Integer, String> nextMachine = getNextMachine(serverId, key);
             	// server that contains the key is off line then lookup in replication servers
-            	if((nextMachine.getKey() == serverId && !FailureDetectorThread.isAlive(serverId))){
+            	if((nextMachine.getKey() == serverId && !FailureDetectorThread.isServerAlive(serverId))){
             		handleMessage(req, "lookup: machine " + this.myId + " - server " + serverId + " is failed. Lookup replications.\n");
             		return doLookupReplication(req, key);
             	}
@@ -338,7 +350,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 	            try {
 	            	Map.Entry<Integer, String> nextMachine = getNextMachine(serverId, word);
 	            	// server that contains the key is off line then lookup in replication servers
-	            	if((nextMachine.getKey() == serverId && !FailureDetectorThread.isAlive(serverId))){
+	            	if((nextMachine.getKey() == serverId && !FailureDetectorThread.isServerAlive(serverId))){
 	            		handleMessage(req, "lookup: machine " + this.myId + " - server " + serverId + " is failed. Delete replications.\n");
 	                	doDeleteReplication(req, word, value, true);
 	            	}
@@ -361,10 +373,10 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	}
     }
 
-    private boolean delete(Hashtable<String, List<String>> cache, String key, String value){
+    private boolean delete(Hashtable<String, ArrayList<String>> cache, String key, String value){
     	synchronized (cache) {
     		if(cache.containsKey(key)){
-                List<String> values = cache.get(key);
+    			ArrayList<String> values = cache.get(key);
                 if(values.contains(value)){
                 	values.remove(value);
                 	if(values.size() == 0)
@@ -509,7 +521,8 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         try{
             if(DebugMode){
             	utils.Output.println(msg);
-            	req.appendMessage(msg);
+            	if(req != null)
+            		req.appendMessage(msg);
             }
             	
         }catch(Exception e){ }
@@ -531,7 +544,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
     	for (Map.Entry<Integer, String> peer : this.successorTable.entrySet()) {
 			int id = peer.getKey();
 			// check if it is alive
-			if(FailureDetectorThread.isAlive(id)){
+			if(FailureDetectorThread.isServerAlive(id)){
 				return peer.getValue();
 			}
     	}
@@ -553,7 +566,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 			nextMachine = peer;
 		} 
 		// send the request to the last machine in successor  if it is alive
-		if(nextMachine != null && FailureDetectorThread.isAlive(nextMachine.getKey()))
+		if(nextMachine != null && FailureDetectorThread.isServerAlive(nextMachine.getKey()))
 			return nextMachine;
 		// all successors are off line, then send the request to the backup successor.
 		return this.backupSuccessor;
@@ -578,54 +591,61 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * a failed server join back the ring
      */	
 	public void onServerJoin(ServerJoinEvent e){
-		utils.Output.println("DistributedHashTable - onServerJoin: server " +  e.getServerId() + " joind");
-		int serverId = e.getServerId();
+		handleMessage(null, "DistributedHashTable - onServerJoin: server " +  e.getServerId() + " joind");
+		joinServerId = e.getServerId();
 		// skip if back up successor comes back online
-		if(serverId == this.backupSuccessor.getKey())
+		if(joinServerId == this.backupSuccessor.getKey())
 			return;
-
-		String onlineServerAddress =  this.successorTable.get(serverId);
-		ReplicationStorage repServer = null;
-		for(ReplicationStorage rep: this.replications)
-			if(rep.id == serverId){
-				repServer = rep;
-				break;
-			}
 		
+		// run the update on a worker thread
 		try {
-			IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
-					Naming.lookup("rmi://localhost:"+ onlineServerAddress +"/DistributedHashTable");
-	        // update dirty insert cache on the server that joins to the ring
-	        if(repServer.getDirtyInsertCache().size() > 0 &&
-	        		dhtNextMachine.updateDirtyInsertCache(this.myId , repServer.getDirtyInsertCache())){
-	        	// delete dirty inserts as master server gets the updates
-	        	repServer.clearDirtyInsert();
-	        }
-	        // update dirty delete cache on the server that joins to the ring 
-	        if(repServer.getDirtyDeleteCache().size() > 0 &&
-	        		dhtNextMachine.updateDirtyDeleteCache(this.myId, repServer.getDirtyDeleteCache())){
-	        	// delete dirty deletes as master server gets the updates
-	        	repServer.clearDirtyDelete();
-	        }
+			SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+				@Override
+				protected Void doInBackground() throws Exception {
+					String onlineServerAddress =  successorTable.get(joinServerId);
+					ReplicationStorage repServer = null;
+					for(ReplicationStorage rep: replications){
+						if(rep.id == joinServerId){
+							repServer = rep;
+							break;
+						}
+					}					
+					
+					IDistributedHashTable dhtJointMachine = (IDistributedHashTable) 
+							Naming.lookup("rmi://localhost:"+ onlineServerAddress +"/DistributedHashTable");
+			        // update dirty insert cache on the server that joins to the ring
+			        if(repServer.getDirtyInsertCache().size() > 0 &&
+			        		dhtJointMachine.syncDirtyInsertCache(myId , repServer.getDirtyInsertCache())){
+			        	// delete dirty inserts as master server gets the updates
+			        	repServer.clearDirtyInsert();
+			        }
+			        // update dirty delete cache on the server that joins to the ring 
+			        if(repServer.getDirtyDeleteCache().size() > 0 &&
+			        		dhtJointMachine.syncDirtyDeleteCache(myId, repServer.getDirtyDeleteCache())){
+			        	// delete dirty deletes as master server gets the updates
+			        	repServer.clearDirtyDelete();
+			        }
+					return null;
+				}
+			};
+			worker.execute();
 		} catch (Exception e1) {
-			e1.printStackTrace();
-			utils.Output.println("Error-onServerJoin: machine " + this.myId + " - server" + serverId + " failed to update dirty updates " + e1.getMessage()); 
+			handleMessage(null, "Error-onServerJoin: machine " + this.myId + " - server" + joinServerId + " failed to update dirty updates " + e1.getMessage()); 
 		}
-		
 	}
 
 	/** 
      * update dirty insert cache when this server joins back to the ring
      */	
-	public boolean updateDirtyInsertCache(final int senderId, final Hashtable<String, List<String>> dirtyInserts) throws RemoteException {		
+	public boolean syncDirtyInsertCache(final int senderId, final Hashtable<String, ArrayList<String>> dirtyInserts) throws RemoteException {		
 		SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {            
 			@Override
 			protected Boolean doInBackground() throws Exception {
-				Iterator<Entry<String, List<String>>> it = dirtyInserts.entrySet().iterator();
+				Iterator<Entry<String, ArrayList<String>>> it = dirtyInserts.entrySet().iterator();
 				while (it.hasNext()) {
-					Entry<String, List<String>> entry = it.next();
+					Entry<String, ArrayList<String>> entry = it.next();
 					for(String value: entry.getValue()){
-						utils.Output.println("updateDirtyInsertCache: machine " + myId + " - from server " + senderId + " insert dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">.");
+						handleMessage(null, "updateDirtyInsertCache: machine " + myId + " - from server " + senderId + " insert dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">.");
 						insert(localCache, entry.getKey(), value);
 					}
 				}
@@ -639,15 +659,15 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 	/** 
      * update dirty delete cache when this server joins back to the ring
      */ 
-	public boolean updateDirtyDeleteCache(final int senderId, final Hashtable<String, List<String>> dirtyDeletes) throws RemoteException {
+	public boolean syncDirtyDeleteCache(final int senderId, final Hashtable<String, ArrayList<String>> dirtyDeletes) throws RemoteException {
 		SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {            
 			@Override
 			protected Boolean doInBackground() throws Exception {
-				Iterator<Entry<String, List<String>>> it = dirtyDeletes.entrySet().iterator();
+				Iterator<Entry<String, ArrayList<String>>> it = dirtyDeletes.entrySet().iterator();
 				while (it.hasNext()) {
-					Entry<String, List<String>> entry = it.next();
+					Entry<String, ArrayList<String>> entry = it.next();
 					for(String value: entry.getValue()){
-						utils.Output.println("updateDirtyDeleteCache: machine " + myId + " - from server " + senderId + " delete dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">."); 
+						handleMessage(null, "updateDirtyDeleteCache: machine " + myId + " - from server " + senderId + " delete dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">."); 
 						delete(localCache, entry.getKey(), value);
 					}
 				}
@@ -657,4 +677,241 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         worker.execute();
         return true;
 	}
+
+
+	/** 
+     * when this server backs to the ring, it will sync the replication servers with the master if it is online
+     * or with the other replication server 
+     */ 
+    private void syncReplicationServer(final ReplicationStorage rep){
+    	SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
+			@Override
+			protected Void doInBackground() throws Exception {
+		    	if(FailureDetectorThread.isServerAlive(rep.id)){
+					IDistributedHashTable dhtMasterMachine = (IDistributedHashTable) 
+						Naming.lookup("rmi://localhost:" + rep.port + "/DistributedHashTable");
+			        // update dirty insert cache on the server that joins to the ring
+					Hashtable<String, ArrayList<String>> masterDirtyInsertCache = dhtMasterMachine.getDirtyInsertCache(myId);
+					Iterator<Entry<String, ArrayList<String>>> it = masterDirtyInsertCache.entrySet().iterator();
+					while (it.hasNext()) {
+						Entry<String, ArrayList<String>> entry = it.next();
+						for(String value: entry.getValue()){
+							handleMessage(null, "syncReplicationServer: machine " + myId + " - from server " + rep.id + " insert dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">.");
+							rep.insert(entry.getKey(), value, false);
+						}
+					}
+					
+					Hashtable<String, ArrayList<String>> masterDirtyDeleteCache = dhtMasterMachine.getDirtyDeleteCache(myId);
+					it = masterDirtyDeleteCache.entrySet().iterator();
+					while (it.hasNext()) {
+						Entry<String, ArrayList<String>> entry = it.next();
+						for(String value: entry.getValue()){
+							handleMessage(null, "syncReplicationServer: machine " + myId + " - from server " + rep.id + " delete dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">.");
+							rep.remove(entry.getKey(), value, false);
+						}
+					}
+		        }
+		    	else{
+		    		// master server is off-line, sync with the other replication machine if it is online
+					String nextLiveMachine = getNextLiveAddress();
+					IDistributedHashTable dhtNextliveMachine = (IDistributedHashTable) 
+						Naming.lookup("rmi://localhost:" + nextLiveMachine + "/DistributedHashTable");
+					String nextRepMachineAddress = dhtNextliveMachine.getRepHostAddress(rep.id);
+					if(nextRepMachineAddress != null){
+				        // update dirty insert cache on the server that joins to the ring
+						IDistributedHashTable dhtRepMachine = (IDistributedHashTable) 
+							Naming.lookup("rmi://localhost:" + nextRepMachineAddress + "/DistributedHashTable");
+						
+						Hashtable<String, ArrayList<String>> repDirtyInsertCache = dhtRepMachine.getDirtyInsertRepCache(rep.id);
+						Iterator<Entry<String, ArrayList<String>>> it = repDirtyInsertCache.entrySet().iterator();
+						while (it.hasNext()) {
+							Entry<String, ArrayList<String>> entry = it.next();
+							for(String value: entry.getValue()){
+								handleMessage(null, "syncReplicationServer: machine " + myId + " - from server " + rep.id + " insert dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">.");
+								rep.insert(entry.getKey(), value, false);
+							}
+						}
+						
+						Hashtable<String, ArrayList<String>> repDirtyDeleteCache = dhtRepMachine.getDirtyDeleteRepCache(rep.id);
+						it = repDirtyDeleteCache.entrySet().iterator();
+						while (it.hasNext()) {
+							Entry<String, ArrayList<String>> entry = it.next();
+							for(String value: entry.getValue()){
+								handleMessage(null, "syncReplicationServer: machine " + myId + " - from server " + rep.id + " delete dirty entry <" + entry.getKey() + ", " + entry.getValue() + ">.");
+								rep.remove(entry.getKey(), value, false);
+							}
+						}
+					}
+		    	}
+		    	return null;
+			}
+        };
+        worker.execute();
+    }
+    
+	/** 
+     * returns dirty delete cache. This function should be called on join a server
+     * this functions check if both replication servers are running, then cleans the dirty delete cache
+     */ 
+    public Hashtable<String, ArrayList<String>> getDirtyDeleteCache(final int newJoindServerId){
+		Hashtable<String, ArrayList<String>> copy = deepCopy(this.dirtyDeleteCache);
+		SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {            
+			@Override
+			protected Void doInBackground() throws Exception {
+				String nextLivMachine = getNextLiveAddress();
+				List<Integer> repHosts = null;
+				try {
+					IDistributedHashTable dhtLivMachine = (IDistributedHashTable) 
+						Naming.lookup("rmi://localhost:"+ nextLivMachine +"/DistributedHashTable");
+					repHosts = dhtLivMachine.getReplicationServers(myId);
+				} catch (Exception e) { 
+					handleMessage(null, "Error-getDirtyInsertCache: machine " + myId + " " + e.getMessage());
+				}
+				if(repHosts != null && (repHosts.size() == MaxServersToConnect ||
+						(repHosts.size() == (MaxServersToConnect) && !repHosts.contains(newJoindServerId))))
+				{
+					// there is a condition that the server asked for the dirty inserts, has a delay to join
+					// the ring, so repHosts checks if the number of host in case the requester server does not 
+					// respond yet
+					dirtyDeleteCache.clear();
+				}
+				else
+					handleMessage(null, "getDirtyInsertCache: machine " + myId + " a replication server is offline keep DirtyInsertCache.");
+				return null;
+			}
+		};
+		worker.execute();
+		return copy;
+	}
+
+	/** 
+     * returns dirty insert cache. This function should be called on join a server
+     * this functions check if both replication servers are running, then cleans the dirty insert cache
+     */ 
+    public Hashtable<String, ArrayList<String>> getDirtyInsertCache(final int newJoindServerId){
+		Hashtable<String, ArrayList<String>> copy = deepCopy(this.dirtyInsertCache);
+		SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {            
+			@Override
+			protected Void doInBackground() throws Exception {
+				String nextLivMachine = getNextLiveAddress();
+				List<Integer> repHosts = null;
+				try {
+					IDistributedHashTable dhtLivMachine = (IDistributedHashTable) 
+						Naming.lookup("rmi://localhost:"+ nextLivMachine +"/DistributedHashTable");
+					repHosts = dhtLivMachine.getReplicationServers(myId);
+				} catch (Exception e) { 
+					handleMessage(null, "Error-getDirtyInsertCache: machine " + myId + " " + e.getMessage());
+				}
+				if(repHosts != null && (repHosts.size() == MaxServersToConnect ||
+						(repHosts.size() == (MaxServersToConnect - 1) && !repHosts.contains(newJoindServerId))))
+				{
+					// there is a condition that the server asked for the dirty inserts, has a delay to join
+					// the ring, so repHosts checks if the number of host in case the requester server does not 
+					// respond yet
+					handleMessage(null, "getDirtyInsertCache: machine " + myId + " both replication servers are runinng, clean DirtyInsertCache.");
+					dirtyDeleteCache.clear();
+				}
+				else
+					handleMessage(null, "getDirtyInsertCache: machine " + myId + " a replication server is offline keep DirtyInsertCache.");
+				return null;
+			}
+		};
+		worker.execute();
+		return copy;
+	}
+
+	/** 
+     * returns if this server contains a replication server of request id and sends the query to the next live machine. 
+     * the request would go to the ring till it reaches the requester
+     */ 
+	public List<Integer> getReplicationServers(int serverId) throws RemoteException{
+		// token has visited all servers in the ring, don't need to go more
+		List<Integer> res = new ArrayList<Integer>();
+		if(serverId == this.myId)
+			return res;
+		
+		for(ReplicationStorage rep: replications){
+			if(rep.id == serverId){
+				res.add(this.myId);
+				break;
+			}
+		}
+		
+		String nextLivMachine = getNextLiveAddress();
+		try {
+			IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
+				Naming.lookup("rmi://localhost:"+ nextLivMachine +"/DistributedHashTable");
+			res.addAll(dhtNextMachine.getReplicationServers(serverId));
+		} catch (Exception e) {
+			handleMessage(null, "Error-getReplicationCount: machine " + myId + e.getMessage());
+		}
+		return res; 
+	}
+	
+	/** 
+     * returns host address of a replication server
+     * return null if no host is found
+     */ 
+	public String getRepHostAddress(int serverId) throws RemoteException{
+		// token has visited all servers in the ring, don't need to go more		
+		if(serverId == this.myId)
+			return null;
+		
+		for(ReplicationStorage rep: replications){
+			if(rep.id == serverId){
+				return this.myAddress;
+			}
+		}
+		
+		String nextLivMachine = getNextLiveAddress();
+		try {
+			IDistributedHashTable dhtNextMachine = (IDistributedHashTable) 
+				Naming.lookup("rmi://localhost:"+ nextLivMachine +"/DistributedHashTable");
+			return dhtNextMachine.getRepHostAddress(serverId);
+		} catch (Exception e) {
+			handleMessage(null, "Error-getRepHostAddress: machine " + myId + e.getMessage());
+		}
+		return null; 
+	}
+	
+	/** 
+     * creates a deep copy of cache
+     */
+	private Hashtable<String, ArrayList<String>> deepCopy(Hashtable<String, ArrayList<String>> original){
+		Hashtable<String, ArrayList<String>> copy = new Hashtable<String, ArrayList<String>>(original.size());
+		synchronized (original){
+			for(Map.Entry<String, ArrayList<String>> entry : original.entrySet()) {
+		        copy.put(entry.getKey(), (ArrayList<String>)entry.getValue().clone());
+		    }
+		}
+		return copy;
+	}
+	
+
+	/** 
+     * get dirty deletes of a replication server hosted in this machine
+     */
+	public Hashtable<String, ArrayList<String>> getDirtyDeleteRepCache(int serverId) throws RemoteException {
+		Hashtable<String, ArrayList<String>> res = new Hashtable<String, ArrayList<String>>();
+		for(ReplicationStorage rep: this.replications){
+			if(rep.id == serverId){
+				res = rep.getDirtyDeleteCache();
+			}
+		}
+		return res;
+	}
+
+
+	/** 
+     * get dirty inserts of a replication server hosted in this machine
+     */
+	public Hashtable<String, ArrayList<String>> getDirtyInsertRepCache(int serverId) throws RemoteException {
+		Hashtable<String, ArrayList<String>> res = new Hashtable<String, ArrayList<String>>();
+		for(ReplicationStorage rep: this.replications){
+			if(rep.id == serverId){
+				res = rep.getDirtyInsertCache();
+			}
+		}
+		return res;	}
+
 }

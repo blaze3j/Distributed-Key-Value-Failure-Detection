@@ -7,15 +7,25 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.*;
 
+/** 
+ * creates a receive  ping thread and send ACK to the sender 
+ */
 public class ReceivePingThread extends Thread{
 	
 	private int myId;
 	private int myPort;
-	
+
+	/**
+	* constructor
+    */
 	public ReceivePingThread(int id, int port, List<Integer> peers){
 		this.myId = id;
 		this.myPort = port;
 	}
+
+	/**
+	* starts the receive ping thread
+    */
 	public void run(){
         DatagramSocket serverSocket = null;
 		try {
@@ -33,11 +43,11 @@ public class ReceivePingThread extends Thread{
         			serverSocket.receive(receivePacket);
         		}
         		catch (IOException e) {
-        			utils.Output.println("Fail to receive PING: " + e.getMessage());
+        			FailureDetectorThread.handleMessage("Fail to receive PING: " + e.getMessage());
             		continue;
             	}
         		String sentence = new String( receivePacket.getData());
-        		utils.Output.println("RECEIVED: " + sentence);
+        		FailureDetectorThread.handleMessage("RECEIVED: " + sentence);
         		InetAddress IPAddress = receivePacket.getAddress();
         		int port = receivePacket.getPort();
         		String ackData = "Ack " + this.myId;
@@ -46,10 +56,10 @@ public class ReceivePingThread extends Thread{
         			serverSocket.send(sendPacket);
             	} catch (IOException e) {
         			// Ignore client timeout
-            		utils.Output.println("Fail to send ACK: " + e.getMessage());
+            		FailureDetectorThread.handleMessage("Fail to send ACK: " + e.getMessage());
             	}
         	} catch (Exception e) {
-        		utils.Output.println("Failure in Receive Thread: " + e.getMessage());
+        		FailureDetectorThread.handleMessage("Failure in Receive Thread: " + e.getMessage());
         	}
        }
 	}

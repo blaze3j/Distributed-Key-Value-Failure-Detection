@@ -7,7 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Vector;
 
-
+/** 
+ * A singleton class that creates a thread for failure detector system
+ */
 public class FailureDetectorThread extends Thread {
 	private int serverId;
 	private int serverPort;
@@ -15,48 +17,70 @@ public class FailureDetectorThread extends Thread {
 	private static FailureDetectorThread instance = null;
 	private ReceivePingThread receiveThread = null;
 	private SendPingThread sendThread = null;
+	public static boolean DebugMode;
 	
 	private Vector<ServerJoinListener> listeners;
 	
+	/**
+	* returns an instance of failure detector thread
+    */
 	public static FailureDetectorThread getInstance(int id, String failureSettingFile) throws NumberFormatException, IOException{
 		if(instance == null)
 			instance = new FailureDetectorThread(id, failureSettingFile);
 		return instance;
 	}
 	
-	public static boolean isAlive(Integer id){
-		return instance.sendThread.isAlive(id);
+	/**
+	* checks if a server is alive
+    */
+	public static boolean isServerAlive(Integer id){
+		return instance.sendThread.isServerAlive(id);
 	}
-	
+
+	/**
+	* returns the back up server 
+    */
 	public static  Map.Entry<Integer, String> getBackupPeer(){
 		return instance.sendThread.backupPeer;
 	}
-		
-	private FailureDetectorThread(int id, String failureSettingFile) throws NumberFormatException, IOException {
-	    System.out.println("Recieved id " + id + " settings file " + failureSettingFile);
-	    // read server setting file
-	    java.net.URL path = ClassLoader.getSystemResource(failureSettingFile);	
-	    FileReader fr = new FileReader(path.getFile());
-	    BufferedReader br = new BufferedReader (fr);
-	    String line;
-	    serverId = id;
-	    
-	    peers = new LinkedHashMap<Integer, String>();
-	    while ((line = br.readLine()) != null){
-	        String[] serverSetting = line.split(",");
-	        int i = 0;
-	        if(Integer.parseInt(serverSetting[i]) == serverId){
-	            serverPort = Integer.parseInt(serverSetting[++i]);
-	            peers.put(Integer.parseInt(serverSetting[++i]), serverSetting[++i]);
-	            peers.put(Integer.parseInt(serverSetting[++i]), serverSetting[++i]);
-	            peers.put(Integer.parseInt(serverSetting[++i]), serverSetting[++i]);
-	            break;
-	        }
-	    }
-	    
-	    receiveThread = new ReceivePingThread(serverId, serverPort, null);
-		sendThread = new SendPingThread(this, serverId, peers);
-	}
+	
+	/**
+	* output message
+    */
+   public static void handleMessage(String msg){
+       try{
+           if(FailureDetectorThread.DebugMode)
+           		utils.Output.println(msg);
+       }catch(Exception e){ }
+   }
+	/**
+	* creates an instance of failure detector thread
+	*/
+   private FailureDetectorThread(int id, String failureSettingFile) throws NumberFormatException, IOException {
+	   System.out.println("Recieved id " + id + " settings file " + failureSettingFile);
+	   // read server setting file
+	   java.net.URL path = ClassLoader.getSystemResource(failureSettingFile);	
+	   FileReader fr = new FileReader(path.getFile());
+	   BufferedReader br = new BufferedReader (fr);
+	   String line;
+	   serverId = id;
+	   
+	   peers = new LinkedHashMap<Integer, String>();
+	   while ((line = br.readLine()) != null){
+	       String[] serverSetting = line.split(",");
+	       int i = 0;
+	       if(Integer.parseInt(serverSetting[i]) == serverId){
+	           serverPort = Integer.parseInt(serverSetting[++i]);
+	           peers.put(Integer.parseInt(serverSetting[++i]), serverSetting[++i]);
+	           peers.put(Integer.parseInt(serverSetting[++i]), serverSetting[++i]);
+	           peers.put(Integer.parseInt(serverSetting[++i]), serverSetting[++i]);
+	           break;
+	       }
+	   }
+	   
+	   receiveThread = new ReceivePingThread(serverId, serverPort, null);
+	   sendThread = new SendPingThread(this, serverId, peers);
+   }
 	
 	/** Register a listener for ServerJoinEvent */
 	synchronized public void addServerJoinListener(ServerJoinListener l) {
@@ -96,6 +120,9 @@ public class FailureDetectorThread extends Thread {
 	    }
 	}
 	
+	/**
+	* starts the send ping thread
+    */
 	public void run() {
 		receiveThread.start();
 		sendThread.start();

@@ -1,5 +1,3 @@
-import static org.junit.Assert.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -9,13 +7,9 @@ import java.rmi.RemoteException;
 import java.util.LinkedList;
 import java.util.Random;
 
-import Stopwatch.Stopwatch;
 import distributed.hash.table.IDistributedHashTable;
 import distributed.hash.table.IInsertDeleteRequest;
-import distributed.hash.table.IQueryRequest;
 import distributed.hash.table.InsertDeleteRequest;
-import distributed.hash.table.QueryRequest;
-
 
 public class DHTMovieLoader {
     protected static int mServerCount;
@@ -23,12 +17,11 @@ public class DHTMovieLoader {
     protected static IDistributedHashTable[] mDhtClientArray = null;
     protected static int mRequestId = 1;
     protected static Random mRandom = null;
-    protected static LinkedList<String> mLinkedList = null;
 
     public static void setUp() throws Exception {
         mRandom = new Random();
-
-        try{
+        
+    	try{
             java.net.URL path = ClassLoader.getSystemResource("clientSetting4.txt");    
             FileReader fr = new FileReader (path.getFile());
             BufferedReader br = new BufferedReader (fr);
@@ -48,23 +41,6 @@ public class DHTMovieLoader {
             System.exit(-1);
         }
         
-        mLinkedList = new LinkedList<String>();
-        try{
-            java.net.URL path = ClassLoader.getSystemResource("movies.list");
-            FileReader fr = new FileReader (path.getFile());
-            BufferedReader br = new BufferedReader (fr);
-
-            for (int i = 0; i < 10; i++) {
-                System.out.println(br.readLine());
-            }
-            
-        } catch (FileNotFoundException e2) {
-            e2.printStackTrace();
-            System.exit(-1);
-        }
-
-        System.exit(0);
-        
         mDhtClientArray = new IDistributedHashTable[mServerCount];
         for (int i = 0; i < mServerCount; i++) {
             mDhtClientArray[i] = (IDistributedHashTable) 
@@ -77,8 +53,7 @@ public class DHTMovieLoader {
      */
     public static void main(String[] args) {
         int count = 0;
-        int total = 0;
-        
+       
         try {
             setUp();
         } catch (Exception e1) {
@@ -94,23 +69,35 @@ public class DHTMovieLoader {
             }
         }
         
-        try {
-            int machineClientId = mRandom.nextInt(mServerCount);
-            int machineId = machineClientId + 1;
-            int key = mRandom.nextInt(1000000) + 1;
-            IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, "" + key, 1);
-
-            mDhtClientArray[machineClientId].insert(req);
+        try{
+            java.net.URL path = ClassLoader.getSystemResource("unique_movies_list.txt");
+            FileReader fr = new FileReader (path.getFile());
+            BufferedReader br = new BufferedReader (fr);
+            String line;
+            while ((line = br.readLine()) != null){
+            	int machineClientId = mRandom.nextInt(mServerCount);
+                int machineId = machineClientId + 1;
+            	System.out.println("mRequestId: " + mRequestId + " machineId: " + machineId + " line: " + line);
+                IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, line, line);
+                mDhtClientArray[machineClientId].insert(req);
+    	    }
             
-        }  catch(RemoteException e) {
-            e.printStackTrace();
-            System.out.println("dhtClient: " +  e.getMessage());
-        }
+        } catch (FileNotFoundException e2) {
+            e2.printStackTrace();
+            System.exit(-1);
+        } catch (RemoteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}        
+        
+        
         
         for (int i = 0; i < mServerCount; i++) {
             try {
                 count =  mDhtClientArray[i].count();
-                total += count;
                 System.out.println("DHTServer[" + (i + 1) + "] count " + count);
                 
             } catch (RemoteException e) {

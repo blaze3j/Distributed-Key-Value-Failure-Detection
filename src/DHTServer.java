@@ -91,7 +91,7 @@ public class DHTServer {
 
 		try{
 			// initialize the server for this process
-			DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverCount, successor);
+			DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverPort, serverCount, successor);
 			Naming.rebind("//localhost:"+serverPort+"/DistributedHashTable", dhtServer);
             System.out.println("Distributed Hash server on machine: " + serverId + " is running.");
 		}catch(RemoteException e){

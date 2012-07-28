@@ -12,9 +12,9 @@ public class ReplicationStorage {
 	public int id;
 	public String address;
 	public int port;
-    private Hashtable<String, List<String>> localCache;
-    private Hashtable<String, List<String>> dirtyInsertCache;
-    private Hashtable<String, List<String>> dirtyDeleteCache;
+    private Hashtable<String, ArrayList<String>> localCache;
+    private Hashtable<String, ArrayList<String>> dirtyInsertCache;
+    private Hashtable<String, ArrayList<String>> dirtyDeleteCache;
     
     /** 
      * Constructor
@@ -23,9 +23,9 @@ public class ReplicationStorage {
     	this.id = id;
     	this.address = address;
     	this.port = port;
-    	this.localCache = new Hashtable<String, List<String>>();
-    	this.dirtyInsertCache = new Hashtable<String, List<String>>();
-    	this.dirtyDeleteCache = new Hashtable<String, List<String>>();
+    	this.localCache = new Hashtable<String, ArrayList<String>>();
+    	this.dirtyInsertCache = new Hashtable<String, ArrayList<String>>();
+    	this.dirtyDeleteCache = new Hashtable<String, ArrayList<String>>();
     }
     
     /** 
@@ -34,10 +34,10 @@ public class ReplicationStorage {
     public void insert(String key, String value, boolean isDirty){
     	if(isDirty){
     		insert(this.dirtyInsertCache, key, value);
-    		utils.Output.print("insert dirty - ReplicationStorage: machine " + this.id + ", " + key + " is inserted\n");
+    		handleMessage("insert dirty - ReplicationStorage: machine " + this.id + ", " + key + " is inserted");
     	}
     	if(insert(this.localCache, key, value))
-    		utils.Output.print("insert - ReplicationStorage: machine " + this.id + ", " + key + " is inserted\n");
+    		handleMessage("insert - ReplicationStorage: machine " + this.id + ", " + key + " is inserted");
     }
     
     /** 
@@ -55,11 +55,11 @@ public class ReplicationStorage {
     public boolean remove(String key, String value, boolean isDirty){
     	if(isDirty){
     		insert(this.dirtyDeleteCache, key, value);
-    		utils.Output.print("remove dirty - ReplicationStorage: machine " + this.id + ", " + key + " is deleted\n");
+    		handleMessage("remove dirty - ReplicationStorage: machine " + this.id + ", " + key + " is deleted");
     	}
     	
     	if(remove(this.localCache, key, value)){
-    		utils.Output.print("remove - ReplicationStorage: machine " + this.id + ", " + key + " is deleted\n");
+    		handleMessage("remove - ReplicationStorage: machine " + this.id + ", " + key + " is deleted");
     		return true;
     	}
     	return false;
@@ -68,14 +68,14 @@ public class ReplicationStorage {
     /** 
      * get list of dirty inserts 
      */
-    public Hashtable<String, List<String>> getDirtyInsertCache(){
+    public Hashtable<String, ArrayList<String>> getDirtyInsertCache(){
     	return this.dirtyInsertCache;
     }
     
     /** 
      * get list of dirty deletes 
      */
-    public Hashtable<String, List<String>> getDirtyDeleteCache(){
+    public Hashtable<String, ArrayList<String>> getDirtyDeleteCache(){
     	return this.dirtyDeleteCache;
     }
     
@@ -83,6 +83,7 @@ public class ReplicationStorage {
      * clear dirty inserts
      */
     public void clearDirtyInsert(){
+		handleMessage("clearDirtyInsert - ReplicationStorage: machine " + this.id);
     	synchronized (this.dirtyInsertCache) {
         	this.dirtyInsertCache.clear();
 		}
@@ -92,6 +93,7 @@ public class ReplicationStorage {
       * clear dirty deletes
       */
      public void clearDirtyDelete(){
+ 		handleMessage("clearDirtyDelete - ReplicationStorage: machine " + this.id);
      	synchronized (this.dirtyDeleteCache) {
          	this.dirtyDeleteCache.clear();
  		}
@@ -101,6 +103,7 @@ public class ReplicationStorage {
      * clear replication cache
      */
     public void clear(){
+ 		handleMessage("clear - ReplicationStorage: machine " + this.id);
     	synchronized (this.localCache) {
         	this.localCache.clear();
 		}
@@ -115,9 +118,9 @@ public class ReplicationStorage {
     /** 
      * insert an entity to a cache
      */
-    private boolean insert(Hashtable<String, List<String>> cache, String key, String value){
+    private boolean insert(Hashtable<String, ArrayList<String>> cache, String key, String value){
     	synchronized (cache) {
-        	List<String> values = cache.get(key);
+    		ArrayList<String> values = cache.get(key);
             if(values == null){
             	values = new ArrayList<String>();
             	cache.put(key, values);
@@ -133,9 +136,9 @@ public class ReplicationStorage {
     /** 
      * remove an entity to a cache
      */
-    private boolean remove(Hashtable<String, List<String>> cache, String key, String value){
+    private boolean remove(Hashtable<String, ArrayList<String>> cache, String key, String value){
     	synchronized (cache) {
-	    	List<String> values = cache.get(key);
+    		ArrayList<String> values = cache.get(key);
 	    	if(values != null && values.contains(value)){
 	        	values.remove(value);
 	        	if(values.size() == 0)
@@ -144,5 +147,16 @@ public class ReplicationStorage {
 	    	}
     	}
     	return false;
+    }
+    
+    /** 
+     * append message to the request
+     */
+    private void handleMessage( String msg){
+        try{
+            if(DistributedHashTable.DebugMode){
+            	utils.Output.println(msg);
+            }
+        }catch(Exception e){ }
     }
 }

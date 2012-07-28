@@ -108,11 +108,12 @@ public class DHTAndFDServer {
             e1.printStackTrace();
         }
         
-        failureDetectorThread.start();
         DistributedHashTable.DebugMode = DebugMode;
+        FailureDetectorThread.DebugMode = DebugMode;
+        failureDetectorThread.start();
         try{
             // initialize the server for this process
-            DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverCount, successor);
+            DistributedHashTable dhtServer = new DistributedHashTable(serverId, serverPort, serverCount, successor);
             Naming.rebind("//localhost:"+serverPort+"/DistributedHashTable", dhtServer);
             failureDetectorThread.addServerJoinListener(dhtServer);
             System.out.println("Distributed Hash server on machine: " + serverId + " is running.");
