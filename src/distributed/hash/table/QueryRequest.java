@@ -40,7 +40,7 @@ public class QueryRequest implements IQueryRequest{
 	/** 
      * Append message to this request 
      */
-	public void appendMessage(String message){this.message += message;}
+	public void appendMessage(String message){this.message += message + "\n";}
 	
 	/** 
      * Get message of the request

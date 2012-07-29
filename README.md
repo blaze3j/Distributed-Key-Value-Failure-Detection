@@ -23,6 +23,14 @@ java -Djava.security.policy=server.policy DHTAndFDServer -i 2 -c 4 -f serverSett
 java -Djava.security.policy=server.policy DHTAndFDServer -i 3 -c 4 -f serverSetting4.txt -d failureSetting4.txt -r debug
 java -Djava.security.policy=server.policy DHTAndFDServer -i 4 -c 4 -f serverSetting4.txt -d failureSetting4.txt -r debug
 
+
+java -Djava.security.policy=server.policy DHTAndFDServer -i 1 -c 6 -f serverSetting6.txt -d failureSetting6.txt -r debug
+java -Djava.security.policy=server.policy DHTAndFDServer -i 2 -c 6 -f serverSetting6.txt -d failureSetting6.txt -r debug
+java -Djava.security.policy=server.policy DHTAndFDServer -i 3 -c 6 -f serverSetting6.txt -d failureSetting6.txt -r debug
+java -Djava.security.policy=server.policy DHTAndFDServer -i 4 -c 6 -f serverSetting6.txt -d failureSetting6.txt -r debug
+java -Djava.security.policy=server.policy DHTAndFDServer -i 5 -c 6 -f serverSetting6.txt -d failureSetting6.txt -r debug
+java -Djava.security.policy=server.policy DHTAndFDServer -i 6 -c 6 -f serverSetting6.txt -d failureSetting6.txt -r debug
+
 running client for experiments
 
 java DHTInteractiveClient -f clientSetting4.txt -r debug
