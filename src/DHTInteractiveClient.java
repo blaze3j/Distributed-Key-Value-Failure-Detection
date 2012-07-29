@@ -4,7 +4,10 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 
@@ -21,7 +24,6 @@ public class DHTInteractiveClient extends JFrame{
 	
     private int mServerCount;
     public int[] mPortMap;
-    private IDistributedHashTable[] mDhtServerArray = null;
     private int mRequestId = 1;
     private String clientSettingFile;
 
@@ -165,10 +167,8 @@ public class DHTInteractiveClient extends JFrame{
 			System.exit(-1);
 		}
 		
-		mDhtServerArray = new IDistributedHashTable[mServerCount];
         for (int i = 0; i < mServerCount; i++) {
         	try{
-            mDhtServerArray[i] = (IDistributedHashTable) 
             Naming.lookup("rmi://localhost:" + mPortMap[i] + "/DistributedHashTable");
     		appendOutput("server: " + (i+1) + " is connected");
         	}catch(Exception e) {
@@ -177,22 +177,22 @@ public class DHTInteractiveClient extends JFrame{
         }
 	}
 	
+	private IDistributedHashTable getServer(int id) throws Exception{
+		return (IDistributedHashTable) Naming.lookup("rmi://localhost:" + mPortMap[id-1] + "/DistributedHashTable");
+	}
+	
 	// send an insert request to a server
-	// 1 < key < max key number
 	// server: id of server to insert the key
 	private void sendInsertRequest(String key, Object value, int server)
 	{
 		IInsertDeleteRequest insReq = new InsertDeleteRequest(mRequestId++, server, key, value);
 		try {
-			if(mDhtServerArray[server-1] != null){
-				if(DebugMode)
-					UnicastRemoteObject.exportObject(insReq);
-				mDhtServerArray[server-1].insert(insReq);
-				if(DebugMode)
-					appendOutput("DHT Server:\n" + insReq.getMessage());
-			}
-			else
-				appendOutput("sendInsertRequest: server " + server + " is not initialized");
+			IDistributedHashTable dhtServer = getServer(server);
+			if(DebugMode)
+				UnicastRemoteObject.exportObject(insReq);
+			dhtServer.insert(insReq);
+			if(DebugMode)
+				appendOutput("DHT Server:\n" + insReq.getMessage());
 		} catch (Exception e) {
 			appendOutput("sendInsertRequest: " + server +  e.getMessage());
 		}
@@ -204,15 +204,12 @@ public class DHTInteractiveClient extends JFrame{
 	{
 		IInsertDeleteRequest queryReq = new InsertDeleteRequest(mRequestId++, server, key, key);
 		try {
-			if(mDhtServerArray[server-1] != null){
-				if(DebugMode)
-					UnicastRemoteObject.exportObject(queryReq);
-				mDhtServerArray[server-1].delete(queryReq);
-				if(DebugMode)
-					appendOutput("DHT Server:\n" + queryReq.getMessage());
-			}
-			else
-				appendOutput("sendDeleteRequest: server " + server + " is not initialized");
+			IDistributedHashTable dhtServer = getServer(server);
+			if(DebugMode)
+				UnicastRemoteObject.exportObject(queryReq);
+			dhtServer .delete(queryReq);
+			if(DebugMode)
+				appendOutput("DHT Server:\n" + queryReq.getMessage());
 		} catch (Exception e) {
 			appendOutput("sendDeleteRequest: " + server +  e.getMessage());
 		}
@@ -224,24 +221,22 @@ public class DHTInteractiveClient extends JFrame{
 	{
 		IQueryRequest queryReq = new QueryRequest(mRequestId++, server, key);
 		try {
-			if(mDhtServerArray[server-1] != null){
-				if(DebugMode)
-					UnicastRemoteObject.exportObject(queryReq);
-				ArrayList<String> values = (ArrayList<String>)mDhtServerArray[server-1].lookup(queryReq);
-				String msg = "";
-				if(values != null){
-					for(String value: values)
-						msg += "\t" + value + " \n";
-					msg = msg.substring(0, msg.length() - 2);
-				}
-				else
-					msg += "\tnull";
-				if(DebugMode)
-					appendOutput("DHT Server:\n" + queryReq.getMessage() + "\n");
-				appendOutput("DHT Client:\nlookup value is:\n" + msg );
+			IDistributedHashTable dhtServer = getServer(server);		
+			if(DebugMode)
+				UnicastRemoteObject.exportObject(queryReq);
+			ArrayList<String> values = (ArrayList<String>)dhtServer.lookup(queryReq);
+			String msg = "";
+			if(values != null){
+				for(String value: values)
+					msg += "\t" + value + " \n";
+				msg = msg.substring(0, msg.length() - 2);
 			}
 			else
-				appendOutput("sendLookupRequest: server " + server + " is not initialized");			
+				msg += "\tnull";
+			if(DebugMode)
+				appendOutput("DHT Server:\n" + queryReq.getMessage() + "\n");
+			appendOutput("DHT Client:\nlookup value is:\n" + msg );
+			
 		} catch (Exception e) {
 			appendOutput("sendLookupRequest: " + server +  e.getMessage());
 		}
@@ -252,12 +247,9 @@ public class DHTInteractiveClient extends JFrame{
 	private void sendCountRequest(int server)
 	{
 		try {
-			if(mDhtServerArray[server-1] != null){
-				int n = mDhtServerArray[server-1].count();
-				appendOutput("Count machine " + server + " is " + n);
-			}
-			else
-				appendOutput("sendCountRequest: server " + server + " is not initialized");			
+			IDistributedHashTable dhtServer = getServer(server);
+			int n = dhtServer.count();
+			appendOutput("Count machine " + server + " is " + n);
 		} catch (Exception e) {
 			appendOutput("sendCountRequest: " + server +  e.getMessage());
 		}
@@ -267,19 +259,16 @@ public class DHTInteractiveClient extends JFrame{
 	// server: id of server to purge data
 	private void sendPurgeRequest()
 	{
-		for(int i = 0; i < mServerCount; i ++){
-			if(mDhtServerArray[i] != null){
-				try {
-					if(mDhtServerArray[i].purge())
-						appendOutput("DHT Client purge machine " + (i+1) + " is done.\n");
-					else
-						appendOutput("DHT Client purge machine " + (i+1) + " is failed.\n");
-				} catch (Exception e1) {
-					appendOutput("purge server " + (i+1) + " " + e1.getMessage());
-				}
-			}
-			else
-				appendOutput("purge server " + (i+1) + " is not initialized");	
+		for(int i = 1; i <= mServerCount; i++){
+			try {
+				IDistributedHashTable dhtServer = getServer(i);
+				if(dhtServer.purge())
+					appendOutput("DHT Client purge machine " + (i) + " is done.\n");
+				else
+					appendOutput("DHT Client purge machine " + (i) + " is failed.\n");
+			} catch (Exception e1) {
+				appendOutput("purge server " + (i) + " " + e1.getMessage());
+			}	
 		}
 	}
 	

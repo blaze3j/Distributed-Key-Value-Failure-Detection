@@ -5,6 +5,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 /** Interface RMI of distributed hash table
  *  
@@ -29,9 +30,9 @@ public interface IDistributedHashTable extends Remote {
 	    throws java.rmi.RemoteException;
 	public boolean purgeReplication(IReplicationQueryRequest req)
 		throws java.rmi.RemoteException;
-	public boolean syncDirtyInsertCache(int senderId, Hashtable<String, ArrayList<String>> dirtyInserts)
+	public boolean syncDirtyInsertCache(int senderId, Hashtable<String, ArrayList<String>> dirtyInserts, boolean isDirty)
 		throws java.rmi.RemoteException;
-	public boolean syncDirtyDeleteCache(int senderId, Hashtable<String, ArrayList<String>> dirtyDeletes)
+	public boolean syncDirtyDeleteCache(int senderId, Hashtable<String, ArrayList<String>> dirtyDeletes, boolean isDirty)
 		throws java.rmi.RemoteException;	
 	public Hashtable<String, ArrayList<String>> getDirtyDeleteCache(int newJoindServerId)
 		throws java.rmi.RemoteException;
@@ -43,6 +44,6 @@ public interface IDistributedHashTable extends Remote {
 		throws RemoteException;	
 	public List<Integer> getReplicationServers(int serverId) 
 		throws RemoteException;
-	public String getRepHostAddress(int serverId)
+	public Map.Entry<Integer, String> getRepHostAddress(int requestorId, int serverId)
 		throws RemoteException;
 }
