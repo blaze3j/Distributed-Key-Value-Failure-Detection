@@ -50,7 +50,7 @@ public class TestExperimentMovieLoader  extends TestExperiment {
             while ((line = br.readLine()) != null){
             	int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
-            	System.out.println("mRequestId: " + mRequestId + " machineId: " + machineId + " line: " + line);
+            	//System.out.println("mRequestId: " + mRequestId + " machineId: " + machineId + " line: " + line);
                 IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, line, line);
                 mDhtClientArray[machineClientId].insert(req);
     	    }
@@ -59,10 +59,8 @@ public class TestExperimentMovieLoader  extends TestExperiment {
             e2.printStackTrace();
             System.exit(-1);
         } catch (RemoteException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}	
 		

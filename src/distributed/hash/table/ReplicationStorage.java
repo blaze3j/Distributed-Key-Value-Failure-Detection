@@ -74,7 +74,7 @@ public class ReplicationStorage {
     }
     
     /** 
-     * get list of dirty inserts 
+     * get list of local
      */
     public Hashtable<String, ArrayList<String>> getLocalCache(){
         return this.localCache;
@@ -83,14 +83,21 @@ public class ReplicationStorage {
      * get list of dirty inserts 
      */
     public Hashtable<String, ArrayList<String>> getDirtyInsertCache(){
-    	return this.dirtyInsertCache;
+        return this.dirtyInsertCache;
     }
     
     /** 
      * get list of dirty deletes 
      */
     public Hashtable<String, ArrayList<String>> getDirtyDeleteCache(){
-    	return this.dirtyDeleteCache;
+        return this.dirtyDeleteCache;
+    }
+    
+    /** 
+     * set list of locals 
+     */
+    public void setLocalCache(Hashtable<String, ArrayList<String>> hashtable){
+        this.localCache = hashtable;
     }
     
     /** 

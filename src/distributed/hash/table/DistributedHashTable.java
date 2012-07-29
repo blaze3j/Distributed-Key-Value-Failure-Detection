@@ -1,5 +1,6 @@
 package distributed.hash.table;
 
+import java.io.IOException;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -58,8 +59,8 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         this.myId = id;
         this.myAddress = address;
         this.sCount = serverCount;
-        this.persistentManager = new PersistentStorageManager(5);
-
+        this.persistentManager = new PersistentStorageManager(600);
+        PersistentStorage persistentStorage = new PersistentStorage();
         
         handleMessage("DHT server id: " + this.myId + " is created.");
 		int i = 1;
@@ -78,17 +79,42 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 		
 		// sync replications with master server
 		for (ReplicationStorage rep: replications){
-			syncReplicationstorage(rep);
+			String localCacheBackupName = this.myId + "_" + rep.getId() + "_localCache.bkp";
+            java.net.URL path = ClassLoader.getSystemResource(localCacheBackupName);    
+			if (null != path) {
+			    try {
+                    rep.setLocalCache(persistentStorage.load(localCacheBackupName));
+                    handleMessage("preformed restore with " + localCacheBackupName);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+			}
 			
 			// register data structures for persistent storage
-			this.persistentManager.register(this.myId + "_" + rep.getId() + "_localCache.bkp", rep.getLocalCache());
-			this.persistentManager.register(this.myId + "_" + rep.getId() + "_dirtyInsertCache.bkp", rep.getDirtyInsertCache());
-			this.persistentManager.register(this.myId + "_" + rep.getId() + "_dirtyDeleteCache.bkp", rep.getDirtyDeleteCache());      
+			this.persistentManager.register(localCacheBackupName, rep.getLocalCache());
+//			this.persistentManager.register(this.myId + "_" + rep.getId() + "_dirtyInsertCache.bkp", rep.getDirtyInsertCache());
+//			this.persistentManager.register(this.myId + "_" + rep.getId() + "_dirtyDeleteCache.bkp", rep.getDirtyDeleteCache());      
+
+			syncReplicationstorage(rep);
 		}
 		// register data structures for persistent storage	
-		this.persistentManager.register(this.myId + "_" + this.myId + "_localCache.bkp", localCache);	
-		this.persistentManager.register(this.myId + "_" + this.myId + "_dirtyInsertCache.bkp", dirtyInsertCache);	
-		this.persistentManager.register(this.myId + "_" + this.myId + "_dirtyDeleteCache.bkp", dirtyDeleteCache);
+        String localCacheBackupName = this.myId + "_" + this.myId + "_localCache.bkp";
+        java.net.URL path = ClassLoader.getSystemResource(localCacheBackupName);    
+        if (null != path) {
+            try {
+                localCache = persistentStorage.load(localCacheBackupName);
+                handleMessage("preformed restore with " + localCacheBackupName);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+		this.persistentManager.register(localCacheBackupName, localCache);
+//		this.persistentManager.register(this.myId + "_" + this.myId + "_dirtyInsertCache.bkp", dirtyInsertCache);	
+//		this.persistentManager.register(this.myId + "_" + this.myId + "_dirtyDeleteCache.bkp", dirtyDeleteCache);
 		this.persistentManager.start();
     }
 
@@ -999,7 +1025,8 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
 	/** 
      * creates a deep copy of cache
      */
-	private Hashtable<String, ArrayList<String>> deepCopy(Hashtable<String, ArrayList<String>> original){
+	@SuppressWarnings("unchecked")
+    private Hashtable<String, ArrayList<String>> deepCopy(Hashtable<String, ArrayList<String>> original){
 		
 		Hashtable<String, ArrayList<String>> copy = new Hashtable<String, ArrayList<String>>(original.size());
 		synchronized (original){
