@@ -656,7 +656,6 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
      * return null if no host is found
      */ 
 	public Map.Entry<Integer, String> getRepHostAddress(int requestorId ,int serverId) throws RemoteException{
-		handleMessage("getRepHostAddress: machine " + myId + " serverId " + serverId);
 		// token has visited all servers in the ring, don't need to go more
 		if(requestorId == this.myId)
 			return null;
