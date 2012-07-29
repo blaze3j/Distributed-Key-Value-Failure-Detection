@@ -25,7 +25,7 @@ public class DHTAndFDServer {
     private static int serverCount;
     private static LinkedHashMap<Integer, String> successor;
     private static FailureDetectorThread failureDetectorThread;
-    public static boolean DebugMode;
+    public static boolean DebugMode = false;
     
     public static void main(String[] args) {
         GetOpt getopt = new GetOpt(args, "i:d:f:c:r:");

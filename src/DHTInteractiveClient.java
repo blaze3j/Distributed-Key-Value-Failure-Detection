@@ -17,7 +17,7 @@ import distributed.hash.table.*;
  * Interactive Client application for Distributed hash table
  */
 public class DHTInteractiveClient extends JFrame{
-	private static boolean DebugMode;
+	private static boolean DebugMode = false;
 	
     private int mServerCount;
     public int[] mPortMap;
