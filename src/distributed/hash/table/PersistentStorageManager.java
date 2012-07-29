@@ -6,12 +6,12 @@ import java.util.Map;
 
 public class PersistentStorageManager extends Thread {
     private HashMap<String, Object> mStore;
-    private int mPeriodSecs = 0;
+    private int mPeriodMilliSecs = 0;
     private PersistentStorage mPersistentStorage;
 
     public PersistentStorageManager(int periodSecs) {
         mStore = new HashMap<String,Object>();
-        mPeriodSecs = periodSecs;
+        mPeriodMilliSecs = periodSecs * 1000;
         mPersistentStorage = new PersistentStorage();
     }
 
@@ -42,7 +42,7 @@ public class PersistentStorageManager extends Thread {
                 }
             }
             try {
-                sleep(mPeriodSecs);
+                sleep(mPeriodMilliSecs);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
