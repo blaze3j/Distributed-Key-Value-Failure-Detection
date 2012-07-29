@@ -59,7 +59,7 @@ public class DistributedHashTable extends java.rmi.server.UnicastRemoteObject im
         this.myId = id;
         this.myAddress = address;
         this.sCount = serverCount;
-        this.persistentManager = new PersistentStorageManager(5);
+        this.persistentManager = new PersistentStorageManager(30);
         PersistentStorage persistentStorage = new PersistentStorage();
         
         handleMessage("DHT server id: " + this.myId + " is created.");
