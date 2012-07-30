@@ -9,9 +9,9 @@ import java.util.List;
  */
 public class ReplicationStorage {
 
-	public int id;
-	public String address;
-	public int port;
+	private int id;
+	private String address;
+	private int port;
     private Hashtable<String, ArrayList<String>> localCache;
     private Hashtable<String, ArrayList<String>> dirtyInsertCache;
     private Hashtable<String, ArrayList<String>> dirtyDeleteCache;
@@ -71,6 +71,22 @@ public class ReplicationStorage {
     public int getId()
     {
         return this.id;
+    }
+    
+    /** 
+     * get address 
+     */
+    public String getAddress()
+    {
+        return this.address;
+    }
+    
+    /** 
+     * get id 
+     */
+    public int getPort()
+    {
+        return this.port;
     }
     
     /** 

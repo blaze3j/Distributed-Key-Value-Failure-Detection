@@ -28,9 +28,9 @@ public class DHTInteractiveClient extends JFrame{
     private String clientSettingFile;
 
 	private static final long serialVersionUID = 1L;
-	private JTextField keyBox;
+	private JTextField queryBox;
 	private JTextField serverBox;
-	private JLabel keyLabel;
+	private JLabel queryLabel;
 	private JLabel serverLabel;
 	private JLabel serverOutput;
 	private JButton execButton;
@@ -55,10 +55,10 @@ public class DHTInteractiveClient extends JFrame{
 	private void initComponents(){
 		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setTitle("Distributed Hash Table Client");
-		keyBox = new JTextField(25);
+		queryBox = new JTextField(25);
 		serverBox = new JTextField(2);
-		keyLabel = new JLabel("Key: ");
-		keyLabel.setLabelFor(keyBox);
+		queryLabel = new JLabel("Query: ");
+		queryLabel.setLabelFor(queryBox);
 		serverLabel = new JLabel("Server Id: ");
 		serverLabel.setLabelFor(serverBox);
 		serverOutput = new JLabel("Server Output:"); 
@@ -68,9 +68,9 @@ public class DHTInteractiveClient extends JFrame{
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.gridx = 0;
 		c.gridy = 0;
-		pane.add(keyLabel, c);		
+		pane.add(queryLabel, c);		
 		c.gridx = 1;
-		pane.add(keyBox, c);
+		pane.add(queryBox, c);
 				
 		c.gridx = 0;
 		c.gridy = 1;
@@ -182,10 +182,10 @@ public class DHTInteractiveClient extends JFrame{
 	}
 	
 	// send an insert request to a server
-	// server: id of server to insert the key
-	private void sendInsertRequest(String key, Object value, int server)
+	// server: id of server to insert the query
+	private void sendInsertRequest(String query, Object value, int server)
 	{
-		IInsertDeleteRequest insReq = new InsertDeleteRequest(mRequestId++, server, key, value);
+		IInsertDeleteRequest insReq = new InsertDeleteRequest(mRequestId++, server, query, value);
 		try {
 			IDistributedHashTable dhtServer = getServer(server);
 			if(DebugMode)
@@ -199,10 +199,10 @@ public class DHTInteractiveClient extends JFrame{
 	}
 	
 	// send a delete request to a server
-	// server: id of server to delete the key
-	private void sendDeleteRequest(String key, int server)
+	// server: id of server to delete the query
+	private void sendDeleteRequest(String query, int server)
 	{
-		IInsertDeleteRequest queryReq = new InsertDeleteRequest(mRequestId++, server, key, key);
+		IInsertDeleteRequest queryReq = new InsertDeleteRequest(mRequestId++, server, query, query);
 		try {
 			IDistributedHashTable dhtServer = getServer(server);
 			if(DebugMode)
@@ -216,10 +216,10 @@ public class DHTInteractiveClient extends JFrame{
 	}
 	
 	// send a lookup request to a server
-	// server: id of server to lookup the key
-	private void sendLookupRequest(String key, int server)
+	// server: id of server to lookup the query
+	private void sendLookupRequest(String query, int server)
 	{
-		IQueryRequest queryReq = new QueryRequest(mRequestId++, server, key);
+		IQueryRequest queryReq = new QueryRequest(mRequestId++, server, query);
 		try {
 			IDistributedHashTable dhtServer = getServer(server);		
 			if(DebugMode)
@@ -283,17 +283,17 @@ public class DHTInteractiveClient extends JFrame{
         public void actionPerformed(ActionEvent e) {
         	String action = e.getActionCommand();
         	if(action == "insert"){
-        		keyBox.setEnabled(true);
+        		queryBox.setEnabled(true);
         	}
         	else if(action == "lookup"){
-        		keyBox.setEnabled(true);
+        		queryBox.setEnabled(true);
         	}
         	else if(action == "delete"){
-        		keyBox.setEnabled(true);
+        		queryBox.setEnabled(true);
         	}
         	else if(action == "count"){
-        		keyBox.setText("");
-        		keyBox.setEnabled(false);
+        		queryBox.setText("");
+        		queryBox.setEnabled(false);
         	}
         }
 	}
@@ -310,34 +310,34 @@ public class DHTInteractiveClient extends JFrame{
 	class ExecButtonListener implements ActionListener { 
         public void actionPerformed(ActionEvent e) {
         	String action = actionGroup.getSelection().getActionCommand();
-        	String key = keyBox.getText();
+        	String query = queryBox.getText();
         	String server = serverBox.getText();
         	if(action == "insert"){
-        		if(!validateKey()){
+        		if(!validateQuery()){
         			return;
         		}
         		if(!validateServer()){
         			return;
         		}
-        		sendInsertRequest(key, key, Integer.parseInt(server));
+        		sendInsertRequest(query, query, Integer.parseInt(server));
         	}
         	else if(action == "lookup"){
-        		if(!validateKey()){
+        		if(!validateQuery()){
         			return;
         		}
         		if(!validateServer()){
         			return;
         		}
-        		sendLookupRequest(key, Integer.parseInt(server));
+        		sendLookupRequest(query, Integer.parseInt(server));
         	}
         	else if(action == "delete"){
-        		if(!validateKey()){
+        		if(!validateQuery()){
         			return;
         		}
         		if(!validateServer()){
         			return;
         		}
-        		sendDeleteRequest(key, Integer.parseInt(server));
+        		sendDeleteRequest(query, Integer.parseInt(server));
         	}
         	else if(action == "count"){
         		if(!validateServer()){
@@ -360,10 +360,10 @@ public class DHTInteractiveClient extends JFrame{
         	return true;
         }
         
-        private boolean validateKey(){
-        	String key = keyBox.getText();
-        	if(key.isEmpty()){
-    			JOptionPane.showMessageDialog(null, "Please insert key");
+        private boolean validateQuery(){
+        	String query = queryBox.getText();
+        	if(query.isEmpty()){
+    			JOptionPane.showMessageDialog(null, "Please insert query");
     			return false;
     		}
         	return true;
