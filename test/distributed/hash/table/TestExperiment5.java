@@ -12,7 +12,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class TestExperimentMovieLoader  extends TestExperiment {
+public class TestExperiment5  extends TestExperiment {
 
 	/**
      * @throws java.lang.Exception
@@ -50,7 +50,13 @@ public class TestExperimentMovieLoader  extends TestExperiment {
             FileReader fr = new FileReader (path.getFile());
             BufferedReader br = new BufferedReader (fr);
             String line;
-            while ((line = br.readLine()) != null){
+            
+            while ((line = br.readLine()) != null && count < 1000){
+                int flip = mRandom.nextInt(2);
+                if (1 == flip) {
+                    continue;
+                }
+                
             	int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
                 IInsertDeleteRequest req = new InsertDeleteRequest(mRequestId++, machineId, line, line);
@@ -58,6 +64,7 @@ public class TestExperimentMovieLoader  extends TestExperiment {
                 mDhtClientArray[machineClientId].insert(req);
                 mStopwatch.stop(); 
                 System.out.println("DHTServer[" + machineId + "] insert took " + mStopwatch.getElapsedTime());
+                count += 1;
     	    }
             
         } catch (FileNotFoundException e2) {
@@ -69,6 +76,7 @@ public class TestExperimentMovieLoader  extends TestExperiment {
 			e.printStackTrace();
 		}	
 		
+		count = 0;
 		for (int i = 0; i < mServerCount; i++) {
             try {
                 count =  mDhtClientArray[i].count();
@@ -80,8 +88,7 @@ public class TestExperimentMovieLoader  extends TestExperiment {
             }
             total += count;
         }
-		
-		assertTrue(24471 == total);
+//		System.out.println("Total: " + total);
+		assertTrue(1000 <= total);
 	}
-
 }

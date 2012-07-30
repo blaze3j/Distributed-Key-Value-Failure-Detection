@@ -47,7 +47,7 @@ public class TestExperiment4 extends TestExperiment{
             }
         }
 
-        for (int i = 1; i <= 1000000; i++)
+        for (int i = 1; i <= 10000; i++)
         {
             try {
                 int machineClientId = mRandom.nextInt(mServerCount);
@@ -73,14 +73,14 @@ public class TestExperiment4 extends TestExperiment{
             }
         }
         
-        assertTrue(total == 1000000);
+        // assertTrue(total == 10000);
 
         for (int i = 0; i < 1000; i++)
         {
             try {
                 int machineClientId = mRandom.nextInt(mServerCount);
                 int machineId = machineClientId + 1;
-                int key = mRandom.nextInt(1000000) + 1;
+                int key = mRandom.nextInt(10000) + 1;
                 IQueryRequest req = new QueryRequest(mRequestId++, machineId, "" + key);
                 int hops = mDhtClientArray[machineClientId].lookupTrace(req);
                 System.out.println("DHTServer[" + machineId + "] hops " + hops);
